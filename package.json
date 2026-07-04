@@ -34,6 +34,7 @@
     "execa": "9.5.2",
     "picocolors": "1.1.1"
   },
+  "repository": "github:lukegabriel520/workit",
   "devDependencies": {
     "@types/node": "22.10.2",
     "tsup": "8.3.5",
