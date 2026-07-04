@@ -1,5 +1,5 @@
 {
-  "name": "workit",
+  "name": "dookie-workit",
   "version": "2.0.0",
   "description": "Non-invasive Windows CLI session booter — launch profiles, optional pomodoro timer",
   "main": "./dist/index.js",
