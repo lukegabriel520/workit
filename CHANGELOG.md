@@ -1,5 +1,15 @@
 # Changelog
 
+## 3.0.0
+
+### Changed
+
+- **Go rewrite** — native `workit.exe` binary; no Node.js required
+- CLI: [cobra](https://github.com/spf13/cobra), config: [viper](https://github.com/spf13/viper), wizard: [huh](https://github.com/charmbracelet/huh)
+- Process launch via detached `os/exec` (`cmd /c start` on Windows with `CREATE_NEW_PROCESS_GROUP`)
+- Distribution via GitHub Releases (npm `dookie-workit` deprecated)
+- Existing `%APPDATA%\workit\config.json` profiles remain compatible
+
 ## 2.4.2
 
 ### Changed

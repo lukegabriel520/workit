@@ -4,10 +4,10 @@ Non-invasive Windows CLI session booter. Launch named profiles of apps and URLs 
 
 **What it is:** One command opens your apps (browser, school tools, games, Discord, whatever you set up). Does not run at Windows login. Does not spy on you.
 
-**Who needs what:** Windows PC + Node.js installed.
+**Who needs what:** Windows PC — no Node.js required (native Go binary).
 
 **First time:**
-1. Install: `npm install -g dookie-workit`
+1. Download `workit.exe` from [GitHub Releases](https://github.com/lukegabriel520/workit/releases) and add it to your PATH
 2. Setup: `workit init` (pick Work, School, Games & apps, Minimal, or Blank)
 3. Go: `workit` or `workit work` opens your session
 
@@ -23,21 +23,11 @@ Non-invasive Windows CLI session booter. Launch named profiles of apps and URLs 
 
 **Settings file:** `%APPDATA%\workit\config.json` (edit by hand or re-run `workit init`)
 
-**What it is NOT:** Not a startup manager. Not auto-start. Not Mac/Linux (Windows only). Not a standalone `.exe` yet — needs Node.
+**What it is NOT:** Not a startup manager. Not auto-start. Not Mac/Linux (Windows only).
 
 ## Install
 
-```bash
-npm install -g dookie-workit
-```
-
-Local development:
-
-```bash
-npm install
-npm run build
-npm link
-```
+Download `workit.exe` from the latest [GitHub Release](https://github.com/lukegabriel520/workit/releases), place it somewhere on your PATH (e.g. `C:\Tools\`), and run `workit init`.
 
 ## Quick Start
 
@@ -135,29 +125,30 @@ During `workit init`, any preset can use an apps folder. Drop `.json`, `.exe`, o
 | `workit reset` | Clear all configuration |
 | `workit config` | Show config and profile validity |
 
-## Migration from v1
+## Migration from v1 / npm
 
-Existing v1 configs (with `browserPath`, `idePath`, etc.) auto-migrate to a `default` profile on first run. If migration fails, run `workit reset` then `workit init`.
+Existing v1 configs (with `browserPath`, `idePath`, etc.) auto-migrate to a `default` profile on first run. Config at `%APPDATA%\workit\config.json` is unchanged — npm users can switch to the `.exe` without re-running init.
+
+The npm package `dookie-workit` is deprecated as of v3.0. Use GitHub Releases instead.
 
 ## Principles
 
 - **On-demand only** — runs when you invoke it, never at login
 - **No daemon** — CLI exits after launch
 - **No telemetry** — config stays local
-- **Lean** — single bundled CLI, no GUI
+- **Lean** — single native binary, no GUI
 
 ## Requirements
 
 - Windows 10/11
-- Node.js 18+
 
 ## Development
 
+Requires Go 1.22+.
+
 ```bash
-npm install
-npm run build
-npm test
-npm run dev    # watch mode
+go test ./...
+go build -o workit.exe ./cmd/workit
 ```
 
 ## License

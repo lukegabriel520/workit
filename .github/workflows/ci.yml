@@ -10,15 +10,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-go@v5
         with:
-          node-version: "20"
+          go-version: "1.22"
+          cache: true
 
-      - run: npm ci
+      - run: go vet ./...
 
-      - run: npm run build
+      - run: go test ./...
 
-      - run: npm test
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
 
-      - run: npm audit --audit-level=high
-        continue-on-error: true
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache: true
+
+      - run: go build -ldflags "-s -w" -o workit.exe ./cmd/workit
