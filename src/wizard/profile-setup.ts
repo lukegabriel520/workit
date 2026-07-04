@@ -1,6 +1,7 @@
 import pc from "picocolors";
 import fs from "node:fs";
 import path from "node:path";
+import { input } from "@inquirer/prompts";
 import {
   buildGameProfile,
   GAME_CATALOG,
@@ -204,7 +205,7 @@ async function runStep(step: StepId, ctx: SetupContext): Promise<BackOr<void>> {
         return BACK;
       }
       if (choice === "custom") {
-        const name = await inputWithBack({
+        ctx.profileName = await input({
           message: "Profile name:",
           default: ctx.profileName,
           validate: (value) => {
@@ -213,11 +214,7 @@ async function runStep(step: StepId, ctx: SetupContext): Promise<BackOr<void>> {
             }
             return true;
           },
-        }, { allowSkip: false });
-        if (isBack(name)) {
-          return BACK;
-        }
-        ctx.profileName = name;
+        });
       }
       return;
     }
@@ -329,21 +326,15 @@ async function runStep(step: StepId, ctx: SetupContext): Promise<BackOr<void>> {
           break;
         }
 
-        const appName = await inputWithBack({
+        const appName = await input({
           message: "App name:",
           validate: (value) => value.trim().length > 0 || "Enter a name",
-        }, { allowSkip: false });
-        if (isBack(appName)) {
-          continue;
-        }
+        });
 
-        const appPath = await inputWithBack({
+        const appPath = await input({
           message: "App path (.exe or protocol like ms-teams:):",
           validate: (value) => value.trim().length > 0 || "Enter a path",
-        }, { allowSkip: false });
-        if (isBack(appPath)) {
-          continue;
-        }
+        });
 
         ctx.apps.push({
           name: appName.trim(),
@@ -371,14 +362,10 @@ async function runStep(step: StepId, ctx: SetupContext): Promise<BackOr<void>> {
       if (addFolder === "no") {
         ctx.customAppsFolder = undefined;
       } else {
-        const folderPath = await inputWithBack({
+        const folderPath = await input({
           message: "Apps folder path:",
           validate: (value) => value.trim().length > 0 || "Enter a folder path",
-        }, { allowSkip: false });
-
-        if (isBack(folderPath)) {
-          return BACK;
-        }
+        });
 
         ctx.customAppsFolder = path.resolve(folderPath.trim());
         if (!fs.existsSync(ctx.customAppsFolder)) {

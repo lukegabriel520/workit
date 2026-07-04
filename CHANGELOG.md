@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.4.1
+
+### Fixed
+
+- **Pinned-only profiles not launching** — `workit luke` and minimal/work/school/blank profiles no longer error with "no pickable apps"; caused by cac defaulting `--pick` to true when `--no-pick` was registered
+- Replaced `--no-pick` with **`--skip-pick`** to avoid cac negated-option side effects; removed redundant **`--pick`** flag
+
+### Changed
+
+- Wizard required inputs (profile name, app path, folder path) no longer show a redundant "Enter a value" step before the actual prompt
+
 ## 2.4.0
 
 ### Added

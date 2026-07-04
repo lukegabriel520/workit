@@ -15,7 +15,13 @@ import { resolveExtraApps } from "./cli.js";
 import type { Profile } from "./config/schema.js";
 
 describe("resolveExtraApps", () => {
-  const profile: Profile = { apps: [], urls: [], catalogGameIds: ["lol"] };
+  const gamesProfile: Profile = { apps: [], urls: [], catalogGameIds: ["lol"] };
+
+  const minimalProfile: Profile = {
+    apps: [{ name: "Browser", path: "C:\\brave.exe", attachUrls: true }],
+    urls: ["https://github.com"],
+    presetId: "minimal",
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -27,13 +33,22 @@ describe("resolveExtraApps", () => {
     const picked = [{ name: "LoL", path: "C:\\lol.exe" }];
     vi.mocked(promptPickGames).mockResolvedValue(picked);
 
-    const result = await resolveExtraApps(profile, "games", {});
+    const result = await resolveExtraApps(gamesProfile, "games", {});
     expect(result).toEqual(picked);
     expect(promptPickGames).toHaveBeenCalledOnce();
   });
 
-  it("skips prompt with --no-pick", async () => {
-    const result = await resolveExtraApps(profile, "games", { noPick: true });
+  it("skips prompt with --skip-pick", async () => {
+    const result = await resolveExtraApps(gamesProfile, "games", { skipPick: true });
+    expect(result).toEqual([]);
+    expect(promptPickGames).not.toHaveBeenCalled();
+  });
+
+  it("returns empty array for pinned-only profile without pick pool", async () => {
+    vi.mocked(profileHasPickPool).mockReturnValue(false);
+
+    const result = await resolveExtraApps(minimalProfile, "luke", {});
+
     expect(result).toEqual([]);
     expect(promptPickGames).not.toHaveBeenCalled();
   });
@@ -41,18 +56,7 @@ describe("resolveExtraApps", () => {
   it("returns null when user selects nothing", async () => {
     vi.mocked(promptPickGames).mockResolvedValue(null);
 
-    const result = await resolveExtraApps(profile, "games", {});
+    const result = await resolveExtraApps(gamesProfile, "games", {});
     expect(result).toBeNull();
-  });
-
-  it("exits when --pick used but profile has no pool", async () => {
-    vi.mocked(profileHasPickPool).mockReturnValue(false);
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {}) as never);
-
-    await resolveExtraApps({ apps: [], urls: [] }, "work", { pick: true });
-    expect(exitSpy).toHaveBeenCalledWith(1);
-    expect(promptPickGames).not.toHaveBeenCalled();
-
-    exitSpy.mockRestore();
   });
 });

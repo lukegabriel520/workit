@@ -21,19 +21,11 @@ const RESERVED_COMMANDS = new Set([
 
 export async function resolveExtraApps(
   profile: import("./config/schema.js").Profile,
-  profileName: string,
-  options: { pick?: boolean; noPick?: boolean },
+  _profileName: string,
+  options: { skipPick?: boolean },
 ): Promise<import("./config/schema.js").LaunchEntry[] | null> {
   const hasPool = profileHasPickPool(profile);
-  const shouldPrompt = hasPool && !options.noPick;
-
-  if (options.pick && !hasPool) {
-    console.error(pc.yellow(
-      `Profile "${profileName}" has no pickable apps. Run \`workit init\` to add an apps folder or catalog items.`,
-    ));
-    process.exit(1);
-    return null;
-  }
+  const shouldPrompt = hasPool && !options.skipPick;
 
   if (!shouldPrompt) {
     return [];
@@ -139,11 +131,10 @@ export function createCli() {
   cli
     .command("[profile]", "Launch a profile")
     .option("--dry-run", "Preview launches without starting apps")
-    .option("--pick", "Choose catalog / custom-folder apps to launch (default when pool exists)")
-    .option("--no-pick", "Launch pinned apps only; skip the launch picker")
+    .option("--skip-pick", "Launch pinned apps only; skip the launch picker")
     .action(async (
       profileArg: string | undefined,
-      options: { dryRun?: boolean; pick?: boolean; noPick?: boolean },
+      options: { dryRun?: boolean; skipPick?: boolean },
     ) => {
       try {
         const config = requireInit();

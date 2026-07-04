@@ -1,6 +1,6 @@
 {
   "name": "dookie-workit",
-  "version": "2.4.0",
+  "version": "2.4.1",
   "description": "Non-invasive Windows CLI session booter — launch profiles on demand",
   "main": "./dist/index.js",
   "bin": {

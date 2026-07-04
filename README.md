@@ -15,7 +15,7 @@ Non-invasive Windows CLI session booter. Launch named profiles of apps and URLs 
 
 **Useful commands:**
 - `workit --dry-run` — show what would open, open nothing
-- `workit games --no-pick` — pinned apps only, skip the launch picker
+- `workit games --skip-pick` — pinned apps only, skip the launch picker
 - `workit list` — see profile names
 - `workit default school` — change which profile runs with plain `workit`
 - `workit config` — see your settings file
@@ -45,7 +45,7 @@ npm link
 workit init              # setup wizard (← Back on each step)
 workit                   # launch default profile
 workit games             # pinned apps launch; picker for folder/catalog items
-workit games --no-pick   # pinned apps only
+workit games --skip-pick   # pinned apps only
 workit list              # profile names
 workit default work      # set default profile
 workit rename old new     # rename a profile
@@ -98,7 +98,7 @@ Config v2 stores named profiles in `%APPDATA%\workit\config.json`:
 - **Pinned apps** — preset defaults plus any apps you add manually (always launch)
 - **Apps folder** — optional on any preset; items are prompted at launch (multi-select)
 - **Launch picker** — runs automatically when catalog or folder has items; skipped when empty
-- **`--no-pick`** — skip the picker and launch pinned apps only
+- **`--skip-pick`** — skip the picker and launch pinned apps only
 - **Blank preset** — add apps one-by-one, then optionally an apps folder
 - **`attachUrls: true`** — profile URLs open in a new browser window (each URL as a tab)
 - **Protocol handlers** — `ms-teams:`, `steam:`, `steam://` supported in app paths
@@ -124,9 +124,8 @@ During `workit init`, any preset can use an apps folder. Drop `.json`, `.exe`, o
 
 | Command | Description |
 |---------|-------------|
-| `workit [profile]` | Launch profile (auto-prompts picker when catalog/folder exists) |
-| `workit [profile] --no-pick` | Launch pinned apps only |
-| `workit [profile] --pick` | Explicit launch picker (same as default when pool exists) |
+| `workit [profile]` | Launch profile (auto-prompts picker when apps folder/catalog has items) |
+| `workit [profile] --skip-pick` | Launch pinned apps only |
 | `workit list` | List profile names |
 | `workit default <profile>` | Set default profile |
 | `workit rename <old> <new>` | Rename a profile |
