@@ -1,0 +1,43 @@
+{
+  "name": "workit",
+  "version": "2.0.0",
+  "description": "Non-invasive Windows CLI session booter — launch profiles, optional pomodoro timer",
+  "main": "./dist/index.js",
+  "bin": {
+    "workit": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs --minify --clean",
+    "dev": "tsup src/index.ts --format cjs --watch",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "cli",
+    "productivity",
+    "pomodoro",
+    "session",
+    "launcher",
+    "profile"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@inquirer/prompts": "7.2.0",
+    "cac": "6.7.14",
+    "conf": "13.0.0",
+    "execa": "9.5.2",
+    "picocolors": "1.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "tsup": "8.3.5",
+    "typescript": "5.7.2",
+    "vitest": "2.1.8"
+  }
+}
