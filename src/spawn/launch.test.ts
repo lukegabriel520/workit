@@ -6,7 +6,25 @@ vi.mock("execa", () => ({
   execa: (...args: unknown[]) => mockExeca(...args),
 }));
 
-import { formatDryRunLine, launchEntry } from "./launch.js";
+import { buildBrowserLaunchArgs, formatDryRunLine, launchEntry } from "./launch.js";
+
+describe("buildBrowserLaunchArgs", () => {
+  it("opens a new window with profile urls only", () => {
+    const args = buildBrowserLaunchArgs([
+      "https://open.spotify.com",
+      "https://facebook.com",
+      "https://tftacademy.com",
+    ]);
+    expect(args[0]).toBe("--new-window");
+    expect(args).toContain("https://open.spotify.com");
+    expect(args).toContain("https://facebook.com");
+    expect(args).toContain("https://tftacademy.com");
+  });
+
+  it("returns empty array when no urls", () => {
+    expect(buildBrowserLaunchArgs([])).toEqual([]);
+  });
+});
 
 describe("formatDryRunLine", () => {
   it("formats entry with args", () => {
@@ -39,7 +57,35 @@ describe("launchEntry", () => {
     expect(result.error).toContain("Protocol not allowed");
   });
 
+  it("launches executables via cmd start on Windows", async () => {
+    if (process.platform !== "win32") {
+      return;
+    }
+
+    const subprocess = {
+      catch: (fn: (e: unknown) => unknown) => fn(null),
+      unref: vi.fn(),
+    };
+    mockExeca.mockReturnValue(subprocess);
+
+    const result = await launchEntry({
+      name: "App",
+      path: process.env.ComSpec ?? "C:\\Windows\\System32\\cmd.exe",
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockExeca).toHaveBeenCalledWith(
+      "cmd.exe",
+      expect.arrayContaining(["/c", "start", ""]),
+      expect.objectContaining({ detached: true }),
+    );
+  });
+
   it("reports spawn failure from execa", async () => {
+    if (process.platform !== "win32") {
+      return;
+    }
+
     const failingProcess = {
       catch: (fn: (e: unknown) => unknown) => fn({ code: "ENOENT" }),
       unref: vi.fn(),
@@ -48,7 +94,7 @@ describe("launchEntry", () => {
 
     const result = await launchEntry({
       name: "App",
-      path: "C:\\missing.exe",
+      path: process.env.ComSpec ?? "C:\\Windows\\System32\\cmd.exe",
     });
 
     expect(result.success).toBe(false);

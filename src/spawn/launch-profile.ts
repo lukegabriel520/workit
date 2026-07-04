@@ -1,10 +1,10 @@
 import pc from "picocolors";
 import type { LaunchEntry, Profile } from "../config/schema.js";
-import { formatDryRunLine, launchEntry, type SpawnResult } from "./launch.js";
+import { formatDryRunLine, launchEntry, buildBrowserLaunchArgs, type SpawnResult } from "./launch.js";
 
 function buildLaunchArgs(entry: LaunchEntry, profile: Profile): string[] {
   if (entry.attachUrls && profile.urls.length > 0) {
-    return ["--new-window", ...profile.urls];
+    return buildBrowserLaunchArgs(profile.urls);
   }
   return [];
 }

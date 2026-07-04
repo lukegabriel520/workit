@@ -16,8 +16,8 @@ export const GAME_CATALOG: GameDefinition[] = [
   {
     id: "lol",
     name: "League of Legends",
-    launcher: "standalone",
-    path: "C:\\Riot Games\\League of Legends\\LeagueClient.exe",
+    launcher: "riot",
+    args: ["--launch-product=league_of_legends", "--launch-patchline=live"],
   },
   {
     id: "valorant",

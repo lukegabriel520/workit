@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.3.1
+
+### Fixed
+
+- **League of Legends EPERM** — LoL now launches via Riot Client (same as Valorant) instead of direct `LeagueClient.exe` spawn
+- **Riot Client path** — detects default install at `C:\Riot Games\Riot Client\`
+- **Windows spawn EPERM** — all `.exe` launches use `cmd start` (matches double-click behavior; fixes permission errors on protected paths)
+- **Browser new window** — profile URLs launch via shell `start` with `--new-window` so tabs open in a separate window, not the existing one
+
 ## 2.3.0
 
 ### Added

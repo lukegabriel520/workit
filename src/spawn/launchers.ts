@@ -87,6 +87,7 @@ export function getGameLauncherPaths(): GameLauncherPaths {
       ),
     ]),
     riotClient: firstExisting([
+      "C:\\Riot Games\\Riot Client\\RiotClientServices.exe",
       path.join(programFiles, "Riot Games", "Riot Client", "RiotClientServices.exe"),
       path.join(programFilesX86, "Riot Games", "Riot Client", "RiotClientServices.exe"),
     ]),

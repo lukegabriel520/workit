@@ -20,7 +20,7 @@ describe("GAME_CATALOG", () => {
   it("includes hoyoverse and riot titles", () => {
     expect(getGameById("genshin")?.launcher).toBe("hoyoplay");
     expect(getGameById("zzz")?.launcher).toBe("hoyoplay");
-    expect(getGameById("lol")?.launcher).toBe("standalone");
+    expect(getGameById("lol")?.launcher).toBe("riot");
   });
 
   it("has unique game ids", () => {
@@ -58,6 +58,15 @@ describe("resolveCatalogPickables", () => {
     expect(items[0].entry).toMatchObject({
       name: "Valorant",
       path: mockPaths.riotClient,
+    });
+  });
+
+  it("uses riot client for league of legends", () => {
+    const items = resolveCatalogPickables(["lol"], mockPaths);
+    expect(items[0].entry).toMatchObject({
+      name: "League of Legends",
+      path: mockPaths.riotClient,
+      args: ["--launch-product=league_of_legends", "--launch-patchline=live"],
     });
   });
 });
