@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.4.2
+
+### Changed
+
+- **`workit reset`** and init **Full re-setup** now ask twice before wiping config ("Are you sure? This cannot be undone.")
+
 ## 2.4.1
 
 ### Fixed

@@ -22,6 +22,24 @@ import {
 import { BACK, isBack, selectWithBack } from "./back.js";
 import { runProfileReconfigure, runProfileSetup } from "./profile-setup.js";
 
+async function confirmReset(): Promise<boolean> {
+  const first = await confirm({
+    message: "Reset all Workit config and profiles?",
+    default: false,
+  });
+
+  if (!first) {
+    return false;
+  }
+
+  const second = await confirm({
+    message: "Are you sure? This cannot be undone.",
+    default: false,
+  });
+
+  return second;
+}
+
 async function confirmPath(label: string, defaultPath: string): Promise<string> {
   if (!defaultPath.trim()) {
     const customPath = await input({
@@ -347,6 +365,11 @@ export async function runInit(): Promise<void> {
       return;
     }
 
+    if (!(await confirmReset())) {
+      console.log(pc.dim("Reset cancelled."));
+      return;
+    }
+
     resetConfig();
   }
 
@@ -412,12 +435,7 @@ export async function runReset(): Promise<void> {
     return;
   }
 
-  const confirmed = await confirm({
-    message: "Reset all Workit config and profiles?",
-    default: false,
-  });
-
-  if (!confirmed) {
+  if (!(await confirmReset())) {
     console.log(pc.dim("Reset cancelled."));
     return;
   }
