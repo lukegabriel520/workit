@@ -38,7 +38,7 @@ export function getPreset(id: PresetId): Preset {
       return {
         id: "game",
         label: PRESET_LABELS.game,
-        description: "Game launcher, Discord, and browser",
+        description: "Steam, Discord, League of Legends, and browser",
         apps: [
           {
             name: "Steam",
@@ -48,6 +48,10 @@ export function getPreset(id: PresetId): Preset {
             name: "Discord",
             path: `${process.env.LOCALAPDATA ?? ""}\\Discord\\Update.exe`,
             args: ["--processStart", "Discord.exe"],
+          },
+          {
+            name: "League of Legends",
+            path: "C:\\Riot Games\\League of Legends\\LeagueClient.exe",
           },
           { name: "Browser", path: defaults.browserPath, attachUrls: true },
         ],

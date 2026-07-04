@@ -12,11 +12,13 @@ describe("formatDryRunLine", () => {
   it("formats entry with args", () => {
     const line = formatDryRunLine(
       { name: "Browser", path: "C:\\brave.exe", args: ["--foo"] },
-      ["https://github.com"],
+      ["--new-window", "https://github.com", "https://mail.google.com"],
     );
     expect(line).toContain("Browser");
     expect(line).toContain("brave.exe");
+    expect(line).toContain("--new-window");
     expect(line).toContain("https://github.com");
+    expect(line).toContain("https://mail.google.com");
   });
 });
 

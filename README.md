@@ -1,17 +1,17 @@
 # Workit
 
-Non-invasive Windows CLI session booter. Launch named profiles of apps and URLs on demand — optional pomodoro timer, no background services, no boot hooks.
+Non-invasive Windows CLI session booter. Launch named profiles of apps and URLs on demand — no background services, no boot hooks.
 
-**What it is:** One command opens your apps (browser, games, Discord, whatever you set up). Optional countdown timer for focus. Does not run at Windows login. Does not spy on you.
+**What it is:** One command opens your apps (browser, games, Discord, whatever you set up). Does not run at Windows login. Does not spy on you.
 
 **Who needs what:** Windows PC + Node.js installed.
 
 **First time:**
-1. Install: `npm install -g workit`
+1. Install: `npm install -g dookie-workit`
 2. Setup: `workit init` (pick Work, Game, Minimal, or Blank preset)
 3. Go: `workit` opens your apps
 
-**Every day:** Type `workit` when you start. Type `workit pomo` for timer. Done.
+**Every day:** Type `workit` when you start. Done.
 
 **Useful commands:**
 - `workit --dry-run` — show what would open, open nothing
@@ -21,16 +21,12 @@ Non-invasive Windows CLI session booter. Launch named profiles of apps and URLs 
 
 **Settings file:** `%APPDATA%\workit\config.json` (edit by hand or re-run `workit init`)
 
-**GitHub vs npm:** GitHub = source code. npm = how people install with `npm install -g workit`. You must publish a GitHub Release + npm token for others to get it from npm.
-
-**Before you publish:** npm account, check name `workit` not taken (or use `@yourname/workit`), add `NPM_TOKEN` secret in GitHub repo settings, create release tag `v2.0.0`.
-
 **What it is NOT:** Not a startup manager. Not auto-start. Not Mac/Linux (Windows only). Not a standalone `.exe` yet — needs Node.
 
 ## Install
 
 ```bash
-npm install -g workit
+npm install -g dookie-workit
 ```
 
 Local development:
@@ -48,7 +44,6 @@ workit init              # setup wizard (pick preset: work, game, minimal, blank
 workit                   # launch default profile
 workit game              # launch named profile
 workit --dry-run         # preview without spawning
-workit pomo              # focus timer
 workit config            # show profiles
 workit reset             # clear config
 ```
@@ -62,7 +57,6 @@ Config v2 stores named profiles in `%APPDATA%\workit\config.json`:
   "configVersion": 2,
   "isInit": true,
   "defaultProfile": "default",
-  "pomo": 25,
   "profiles": {
     "default": {
       "apps": [
@@ -74,16 +68,16 @@ Config v2 stores named profiles in `%APPDATA%\workit\config.json`:
     "game": {
       "apps": [
         { "name": "Steam", "path": "C:\\Program Files (x86)\\Steam\\steam.exe" },
-        { "name": "Discord", "path": "C:\\Users\\You\\AppData\\Local\\Discord\\Update.exe", "args": ["--processStart", "Discord.exe"] }
+        { "name": "Discord", "path": "C:\\Users\\You\\AppData\\Local\\Discord\\Update.exe", "args": ["--processStart", "Discord.exe"] },
+        { "name": "League of Legends", "path": "C:\\Riot Games\\League of Legends\\LeagueClient.exe" }
       ],
-      "urls": [],
-      "pomo": 45
+      "urls": []
     }
   }
 }
 ```
 
-- **`attachUrls: true`** — profile URLs are passed as args to that app (browser use-case)
+- **`attachUrls: true`** — profile URLs open in a new browser window (each URL as a tab)
 - **Protocol handlers** — `ms-teams:`, `steam:`, `steam://` supported in app paths
 - **Empty paths** — skipped silently (no failed launch for unused slots)
 
@@ -95,7 +89,6 @@ Config v2 stores named profiles in `%APPDATA%\workit\config.json`:
 | `workit --dry-run [profile]` | Preview launches without starting apps |
 | `workit init` | Setup wizard or edit existing profile |
 | `workit reset` | Clear all configuration |
-| `workit pomo [-m N]` | Pomodoro timer (1–120 min) |
 | `workit config` | Show config and profile validity |
 
 ## Migration from v1

@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  parsePomoMinutes,
-  validatePomo,
-  validateUrl,
-  validateUrls,
-} from "./schema.js";
+import { validateUrl, validateUrls } from "./schema.js";
 
 describe("validateUrl", () => {
   it("accepts http and https", () => {
@@ -30,33 +25,5 @@ describe("validateUrls", () => {
 
   it("throws when any invalid", () => {
     expect(() => validateUrls(["https://ok.com", "bad"])).toThrow(/Invalid URLs/);
-  });
-});
-
-describe("validatePomo", () => {
-  it("accepts integers 1-120", () => {
-    expect(validatePomo(25)).toBe(25);
-    expect(validatePomo(1)).toBe(1);
-    expect(validatePomo(120)).toBe(120);
-  });
-
-  it("rejects out of range", () => {
-    expect(() => validatePomo(0)).toThrow();
-    expect(() => validatePomo(121)).toThrow();
-    expect(() => validatePomo(1.5)).toThrow();
-  });
-});
-
-describe("parsePomoMinutes", () => {
-  it("parses string input", () => {
-    expect(parsePomoMinutes("45")).toBe(45);
-  });
-
-  it("parses number input", () => {
-    expect(parsePomoMinutes(30)).toBe(30);
-  });
-
-  it("rejects invalid input", () => {
-    expect(() => parsePomoMinutes("abc")).toThrow();
   });
 });

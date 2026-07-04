@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.1.0
+
+### Added
+
+- League of Legends in the Game preset
+- Browser URLs open in a new window (`--new-window`) instead of appending tabs to an existing window
+
+### Removed
+
+- Pomodoro timer (`workit pomo` command and all pomo config)
+
 ## 2.0.0
 
 ### Breaking

@@ -1,13 +1,11 @@
 import cac from "cac";
 import pc from "picocolors";
 import { NotConfiguredError, ProfileNotFoundError, ValidationError } from "./errors.js";
-import { parsePomoMinutes } from "./config/schema.js";
 import { getConfigUnsafe, getProfile, requireInit } from "./config/store.js";
-import { runPomodoro } from "./pomo/timer.js";
 import { launchProfile } from "./spawn/launch-profile.js";
 import { runInit, runReset, showConfig } from "./wizard/init.js";
 
-const RESERVED_COMMANDS = new Set(["init", "pomo", "config", "reset", "help", "version"]);
+const RESERVED_COMMANDS = new Set(["init", "config", "reset", "help", "version"]);
 
 export function createCli() {
   const cli = cac("workit");
@@ -27,22 +25,6 @@ export function createCli() {
     .action(async () => {
       try {
         await runReset();
-      } catch (error) {
-        handleError(error);
-      }
-    });
-
-  cli
-    .command("pomo", "Start the pomodoro timer")
-    .option("-m, --minutes <n>", "Override pomodoro length in minutes")
-    .action(async (options: { minutes?: string }) => {
-      try {
-        const config = requireInit();
-        const minutes = options.minutes
-          ? parsePomoMinutes(options.minutes)
-          : config.pomo;
-
-        await runPomodoro(minutes);
       } catch (error) {
         handleError(error);
       }

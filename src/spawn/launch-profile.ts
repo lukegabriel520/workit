@@ -4,7 +4,7 @@ import { formatDryRunLine, launchEntry, type SpawnResult } from "./launch.js";
 
 function buildLaunchArgs(entry: LaunchEntry, profile: Profile): string[] {
   if (entry.attachUrls && profile.urls.length > 0) {
-    return profile.urls;
+    return ["--new-window", ...profile.urls];
   }
   return [];
 }
@@ -69,5 +69,4 @@ export async function launchProfile(
   console.log(
     pc.green(`\nSession started: ${successCount}/${total} app(s) launched.`),
   );
-  console.log(pc.dim("Run `workit pomo` to start your focus timer."));
 }

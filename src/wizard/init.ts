@@ -1,14 +1,13 @@
 import {
   confirm,
   input,
-  number as numberPrompt,
   select,
 } from "@inquirer/prompts";
 import pc from "picocolors";
 import fs from "node:fs";
 import { getPreset, isPresetId, PRESET_LABELS, type PresetId } from "../config/presets.js";
 import type { LaunchEntry, Profile } from "../config/schema.js";
-import { validatePomo, validateUrl } from "../config/schema.js";
+import { validateUrl } from "../config/schema.js";
 import {
   getConfigPath,
   getConfigUnsafe,
@@ -130,7 +129,7 @@ async function setupProfile(profileName: string): Promise<Profile> {
     message: `Preset for "${profileName}":`,
     choices: [
       { name: `${PRESET_LABELS.work} — browser, IDE, comms`, value: "work" },
-      { name: `${PRESET_LABELS.game} — Steam, Discord, browser`, value: "game" },
+      { name: `${PRESET_LABELS.game} — Steam, Discord, League of Legends, browser`, value: "game" },
       { name: `${PRESET_LABELS.minimal} — browser only`, value: "minimal" },
       { name: `${PRESET_LABELS.blank} — add paths manually`, value: "blank" },
     ],
@@ -148,25 +147,7 @@ async function setupProfile(profileName: string): Promise<Profile> {
   const hasBrowser = apps.some((a) => a.attachUrls);
   const urls = hasBrowser ? await collectUrls(preset.urls) : [];
 
-  const setProfilePomo = await confirm({
-    message: "Set a profile-specific pomodoro length?",
-    default: false,
-  });
-
-  let pomo: number | undefined;
-  if (setProfilePomo) {
-    pomo = validatePomo(
-      await numberPrompt({
-        message: "Pomodoro length for this profile (minutes):",
-        default: 25,
-        min: 1,
-        max: 120,
-        required: true,
-      }),
-    );
-  }
-
-  return { apps, urls, pomo };
+  return { apps, urls };
 }
 
 async function promptProfileName(defaultName: string): Promise<string> {
@@ -242,21 +223,10 @@ export async function runInit(): Promise<void> {
   const profileName = await promptProfileName("default");
   const profile = await setupProfile(profileName);
 
-  const pomoMinutes = validatePomo(
-    await numberPrompt({
-      message: "Default pomodoro length (minutes):",
-      default: 25,
-      min: 1,
-      max: 120,
-      required: true,
-    }),
-  );
-
   setConfig({
     configVersion: 2,
     isInit: true,
     defaultProfile: profileName,
-    pomo: pomoMinutes,
     profiles: { [profileName]: profile },
   });
 
@@ -276,7 +246,6 @@ export async function runInit(): Promise<void> {
 
   console.log(pc.green("\n✓ Workit configured successfully!"));
   console.log(pc.dim(`Run \`workit\` or \`workit ${profileName}\` to launch.`));
-  console.log(pc.dim("Run `workit pomo` for the focus timer."));
 }
 
 export async function runReset(): Promise<void> {
@@ -309,7 +278,6 @@ export async function showConfig(): Promise<void> {
   console.log(`  Version:         ${config.configVersion ?? 1}`);
   console.log(`  Initialized:     ${config.isInit}`);
   console.log(`  Default profile: ${config.defaultProfile}`);
-  console.log(`  Pomodoro:        ${config.pomo} min`);
 
   const profileNames = Object.keys(config.profiles);
   if (profileNames.length === 0) {
@@ -323,9 +291,6 @@ export async function showConfig(): Promise<void> {
     const marker = name === config.defaultProfile ? pc.cyan(" (default)") : "";
     console.log(`\n  Profile: ${pc.bold(name)}${marker}`);
     console.log(`    URLs:   ${profile.urls.length > 0 ? profile.urls.join(", ") : "(none)"}`);
-    if (profile.pomo !== undefined) {
-      console.log(`    Pomo:   ${profile.pomo} min`);
-    }
     console.log(`    Apps:`);
     if (profile.apps.length === 0) {
       console.log(`      (none)`);

@@ -11,7 +11,6 @@ export interface V1Config {
   idePath?: string;
   comms?: string;
   commsPath?: string;
-  pomo?: number;
   auto?: Array<{ name: string; path: string; args?: string[] }>;
 }
 
@@ -51,14 +50,12 @@ export function migrateV1ToV2(v1: V1Config): WorkitConfig {
     const profile: Profile = {
       apps,
       urls: v1.urls ?? [],
-      pomo: v1.pomo,
     };
 
     return {
       configVersion: 2,
       isInit: v1.isInit ?? false,
       defaultProfile: "default",
-      pomo: v1.pomo ?? 25,
       profiles: { default: profile },
     };
   } catch {

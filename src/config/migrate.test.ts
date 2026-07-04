@@ -22,13 +22,11 @@ describe("migrateV1ToV2", () => {
       comms: "teams",
       commsPath: "ms-teams:",
       urls: ["https://github.com"],
-      pomo: 30,
       auto: [{ name: "Docker", path: "C:\\Docker.exe" }],
     });
 
     expect(v2.configVersion).toBe(2);
     expect(v2.defaultProfile).toBe("default");
-    expect(v2.pomo).toBe(30);
     expect(v2.profiles.default.urls).toEqual(["https://github.com"]);
     expect(v2.profiles.default.apps).toHaveLength(4);
     expect(v2.profiles.default.apps[0]).toMatchObject({

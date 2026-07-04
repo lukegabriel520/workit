@@ -1,7 +1,7 @@
 {
   "name": "dookie-workit",
-  "version": "2.0.0",
-  "description": "Non-invasive Windows CLI session booter — launch profiles, optional pomodoro timer",
+  "version": "2.1.0",
+  "description": "Non-invasive Windows CLI session booter — launch profiles on demand",
   "main": "./dist/index.js",
   "bin": {
     "workit": "./dist/index.js"
@@ -21,7 +21,6 @@
   "keywords": [
     "cli",
     "productivity",
-    "pomodoro",
     "session",
     "launcher",
     "profile"
