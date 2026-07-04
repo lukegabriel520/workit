@@ -24,8 +24,5 @@ export function getProfilePickPool(profile: Profile): PickableItem[] {
 }
 
 export function profileHasPickPool(profile: Profile): boolean {
-  return (
-    (profile.catalogGameIds?.length ?? 0) > 0 ||
-    Boolean(profile.customGamesFolder?.trim())
-  );
+  return getProfilePickPool(profile).length > 0;
 }

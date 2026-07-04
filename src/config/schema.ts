@@ -12,9 +12,9 @@ export interface Profile {
   urls: string[];
   /** work | school | game | minimal | blank — set during init. */
   presetId?: PresetId;
-  /** Catalog game ids prompted at launch (not auto-launched). */
+  /** Catalog ids prompted at launch (games preset). */
   catalogGameIds?: string[];
-  /** Folder of custom .json / .exe apps prompted at launch. */
+  /** Folder of .json / .exe / .lnk apps prompted at launch (any preset). */
   customGamesFolder?: string;
 }
 

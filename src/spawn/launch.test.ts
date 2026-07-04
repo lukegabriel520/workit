@@ -62,10 +62,9 @@ describe("launchEntry", () => {
       return;
     }
 
-    const subprocess = {
-      catch: (fn: (e: unknown) => unknown) => fn(null),
+    const subprocess = Object.assign(Promise.resolve({ exitCode: 0 }), {
       unref: vi.fn(),
-    };
+    });
     mockExeca.mockReturnValue(subprocess);
 
     const result = await launchEntry({
@@ -81,16 +80,34 @@ describe("launchEntry", () => {
     );
   });
 
+  it("treats fast cmd exit as success not failure", async () => {
+    if (process.platform !== "win32") {
+      return;
+    }
+
+    const subprocess = Object.assign(Promise.resolve({ exitCode: 0, stdout: "" }), {
+      unref: vi.fn(),
+    });
+    mockExeca.mockReturnValue(subprocess);
+
+    const result = await launchEntry({
+      name: "Discord",
+      path: process.env.ComSpec ?? "C:\\Windows\\System32\\cmd.exe",
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.error).toBeUndefined();
+  });
+
   it("reports spawn failure from execa", async () => {
     if (process.platform !== "win32") {
       return;
     }
 
-    const failingProcess = {
-      catch: (fn: (e: unknown) => unknown) => fn({ code: "ENOENT" }),
+    const subprocess = Object.assign(Promise.reject(Object.assign(new Error("ENOENT"), { code: "ENOENT" })), {
       unref: vi.fn(),
-    };
-    mockExeca.mockReturnValue(failingProcess);
+    });
+    mockExeca.mockReturnValue(subprocess);
 
     const result = await launchEntry({
       name: "App",

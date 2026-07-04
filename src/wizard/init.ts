@@ -454,7 +454,7 @@ export async function showConfig(): Promise<void> {
       console.log(`    Catalog: ${profile.catalogGameIds.join(", ")} (prompted at launch)`);
     }
     if (profile.customGamesFolder) {
-      console.log(`    Custom folder: ${profile.customGamesFolder} (prompted at launch)`);
+      console.log(`    Apps folder: ${profile.customGamesFolder} (prompted at launch)`);
     }
     console.log(`    Apps:`);
     if (profile.apps.length === 0) {

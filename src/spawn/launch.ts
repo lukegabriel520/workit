@@ -31,10 +31,11 @@ function formatSpawnError(error: unknown): string {
 }
 
 async function verifySpawn(subprocess: ReturnType<typeof execa>): Promise<unknown | null> {
-  return Promise.race([
-    subprocess.catch((error: unknown) => error),
+  const result = await Promise.race([
+    subprocess.then(() => null).catch((error: unknown) => error),
     new Promise<null>((resolve) => setTimeout(() => resolve(null), SPAWN_VERIFY_MS)),
   ]);
+  return result;
 }
 
 async function launchViaCmdStart(

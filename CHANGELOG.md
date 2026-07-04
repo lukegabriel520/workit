@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.4.0
+
+### Added
+
+- **Manual pinned apps** on every preset — add Spotify, Notion, or any `.exe` without an apps folder
+- **Apps folder** on every preset (work, school, games, minimal, blank) — pick from folder at launch
+- **← Back** on wizard sub-prompts (checkbox, path input, URL input, confirm dialogs)
+
+### Fixed
+
+- **Blank preset** — wizard now walks through adding apps instead of finishing with an empty profile
+- **False red launch status** — apps that start via `cmd start` (Discord, LoL, etc.) show green ✓
+- **Empty pick pool blocking launch** — work/school profiles no longer abort when a folder path is set but empty; picker only runs when items exist
+- **Game-centric copy** — errors and prompts say "apps" not "catalog games"
+
 ## 2.3.1
 
 ### Fixed

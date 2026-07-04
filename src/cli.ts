@@ -29,7 +29,7 @@ export async function resolveExtraApps(
 
   if (options.pick && !hasPool) {
     console.error(pc.yellow(
-      `Profile "${profileName}" has no catalog games or custom folder. Run \`workit init\` to add them.`,
+      `Profile "${profileName}" has no pickable apps. Run \`workit init\` to add an apps folder or catalog items.`,
     ));
     process.exit(1);
     return null;

@@ -5,7 +5,7 @@ import type { LaunchEntry } from "../config/schema.js";
 
 export async function promptPickGames(pool: PickableItem[]): Promise<LaunchEntry[] | null> {
   if (pool.length === 0) {
-    console.log(pc.yellow("No pickable games found for this profile."));
+    console.log(pc.yellow("No pickable apps found for this profile."));
     return null;
   }
 

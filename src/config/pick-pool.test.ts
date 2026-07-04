@@ -3,14 +3,17 @@ import { getProfilePickPool, profileHasPickPool } from "./pick-pool.js";
 import type { Profile } from "./schema.js";
 
 describe("profileHasPickPool", () => {
-  it("true when catalog or folder set", () => {
+  it("true when pick pool has catalog items", () => {
     expect(profileHasPickPool({ apps: [], urls: [], catalogGameIds: ["lol"] })).toBe(true);
+    expect(profileHasPickPool({ apps: [], urls: [] })).toBe(false);
+  });
+
+  it("false when folder path set but folder is empty or missing", () => {
     expect(profileHasPickPool({
       apps: [],
       urls: [],
-      customGamesFolder: "C:\\Games",
-    })).toBe(true);
-    expect(profileHasPickPool({ apps: [], urls: [] })).toBe(false);
+      customGamesFolder: "C:\\Nonexistent\\WorkitAppsFolder",
+    })).toBe(false);
   });
 });
 

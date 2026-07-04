@@ -95,10 +95,11 @@ Config v2 stores named profiles in `%APPDATA%\workit\config.json`:
 ```
 
 - **Presets** — Work, School, Games & apps, Minimal, or Blank
-- **Pinned apps** — always launch with the profile (Discord, browser, etc.)
-- **Launch picker** — when a profile has a catalog or custom folder, you choose which items to open (multi-select; runs automatically)
+- **Pinned apps** — preset defaults plus any apps you add manually (always launch)
+- **Apps folder** — optional on any preset; items are prompted at launch (multi-select)
+- **Launch picker** — runs automatically when catalog or folder has items; skipped when empty
 - **`--no-pick`** — skip the picker and launch pinned apps only
-- **Custom folder** — drop `.json` or `.exe` files for any app or game
+- **Blank preset** — add apps one-by-one, then optionally an apps folder
 - **`attachUrls: true`** — profile URLs open in a new browser window (each URL as a tab)
 - **Protocol handlers** — `ms-teams:`, `steam:`, `steam://` supported in app paths
 - **Empty paths** — skipped silently (no failed launch for unused slots)
@@ -107,9 +108,9 @@ Config v2 stores named profiles in `%APPDATA%\workit\config.json`:
 
 During setup for Games & apps, you can add titles from the built-in catalog (LoL, Valorant, Genshin, ZZZ, Honkai, CS2, Elden Ring). These are prompted at launch alongside anything in your custom folder.
 
-### Custom apps folder
+### Apps folder (any preset)
 
-Add `.json` or `.exe` files to a folder (set during `workit init`):
+During `workit init`, any preset can use an apps folder. Drop `.json`, `.exe`, or `.lnk` files in it:
 
 ```json
 {

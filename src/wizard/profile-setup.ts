@@ -1,4 +1,3 @@
-import { checkbox, confirm, input } from "@inquirer/prompts";
 import pc from "picocolors";
 import fs from "node:fs";
 import path from "node:path";
@@ -8,6 +7,7 @@ import {
   type GameProfileOptions,
 } from "../config/games.js";
 import { scanCustomGamesFolderUnsafe } from "../config/custom-games.js";
+import { getProfilePickPool } from "../config/pick-pool.js";
 import { getPreset, isPresetId, PRESET_LABELS, suggestProfileNameFromPreset, type PresetId } from "../config/presets.js";
 import type { LaunchEntry, Profile } from "../config/schema.js";
 import { validateUrl } from "../config/schema.js";
@@ -16,20 +16,40 @@ import {
   resolveSafePath,
   resolveToolPath,
 } from "../spawn/launchers.js";
-import { BACK, isBack, selectWithBack, type BackOr } from "./back.js";
+import {
+  BACK,
+  checkboxWithBack,
+  confirmWithBack,
+  inputWithBack,
+  isBack,
+  selectWithBack,
+  type BackOr,
+} from "./back.js";
 
 const PROFILE_NAME_PATTERN = /^[a-z][a-z0-9-]*$/;
 
-type StepId = "name" | "preset" | "game-shared" | "game-pick" | "custom-folder" | "confirm" | "urls";
+type StepId =
+  | "name"
+  | "preset"
+  | "game-shared"
+  | "game-pick"
+  | "add-pinned"
+  | "apps-folder"
+  | "confirm"
+  | "urls";
 
 interface SetupContext {
   profileName: string;
   presetId?: PresetId;
   gameOptions?: GameProfileOptions;
   catalogGameIds: string[];
-  customGamesFolder?: string;
+  customAppsFolder?: string;
   apps: LaunchEntry[];
   urls: string[];
+}
+
+function stepBeforeAddPinned(presetId?: PresetId): StepId {
+  return presetId === "game" ? "game-pick" : "preset";
 }
 
 function prevStep(step: StepId, presetId?: PresetId): StepId | null {
@@ -42,10 +62,12 @@ function prevStep(step: StepId, presetId?: PresetId): StepId | null {
       return "preset";
     case "game-pick":
       return "game-shared";
-    case "custom-folder":
-      return "game-pick";
+    case "add-pinned":
+      return stepBeforeAddPinned(presetId);
+    case "apps-folder":
+      return "add-pinned";
     case "confirm":
-      return presetId === "game" ? "custom-folder" : "preset";
+      return "apps-folder";
     case "urls":
       return "confirm";
   }
@@ -56,12 +78,14 @@ function nextStep(step: StepId, ctx: SetupContext): StepId | "done" {
     case "name":
       return "preset";
     case "preset":
-      return ctx.presetId === "game" ? "game-shared" : "confirm";
+      return ctx.presetId === "game" ? "game-shared" : "add-pinned";
     case "game-shared":
       return "game-pick";
     case "game-pick":
-      return "custom-folder";
-    case "custom-folder":
+      return "add-pinned";
+    case "add-pinned":
+      return "apps-folder";
+    case "apps-folder":
       return "confirm";
     case "confirm":
       return ctx.apps.some((a) => a.attachUrls) ? "urls" : "done";
@@ -70,12 +94,32 @@ function nextStep(step: StepId, ctx: SetupContext): StepId | "done" {
   }
 }
 
-async function confirmPath(label: string, defaultPath: string): Promise<string> {
+function draftProfile(ctx: SetupContext): Profile {
+  return {
+    apps: ctx.apps,
+    urls: ctx.urls,
+    presetId: ctx.presetId,
+    catalogGameIds: ctx.catalogGameIds.length > 0 ? ctx.catalogGameIds : undefined,
+    customGamesFolder: ctx.customAppsFolder,
+  };
+}
+
+function profileIsLaunchable(ctx: SetupContext): boolean {
+  if (ctx.apps.some((app) => app.path?.trim())) {
+    return true;
+  }
+  return getProfilePickPool(draftProfile(ctx)).length > 0;
+}
+
+async function confirmPathWithBack(label: string, defaultPath: string): Promise<BackOr<string>> {
   if (!defaultPath.trim()) {
-    const customPath = await input({
+    const customPath = await inputWithBack({
       message: `Enter path for ${label} (leave blank to skip):`,
       default: "",
     });
+    if (isBack(customPath)) {
+      return BACK;
+    }
     return customPath.trim() ? resolveSafePath(customPath) : "";
   }
 
@@ -84,37 +128,49 @@ async function confirmPath(label: string, defaultPath: string): Promise<string> 
 
   console.log(`  ${label}: ${pc.dim(defaultPath)} [${status}]`);
 
-  const useDefault = exists
-    ? await confirm({ message: `Use this path for ${label}?`, default: true })
-    : false;
-
-  if (useDefault) {
-    return defaultPath;
+  if (exists) {
+    const useDefaultAnswer = await confirmWithBack({
+      message: `Use this path for ${label}?`,
+      default: true,
+    });
+    if (isBack(useDefaultAnswer)) {
+      return BACK;
+    }
+    if (useDefaultAnswer) {
+      return defaultPath;
+    }
   }
 
-  const customPath = await input({
+  const customPath = await inputWithBack({
     message: `Enter path for ${label} (leave blank to skip):`,
     default: defaultPath,
   });
+
+  if (isBack(customPath)) {
+    return BACK;
+  }
 
   if (!customPath.trim()) {
     return "";
   }
 
   if (!pathExists(customPath) && !customPath.endsWith(":")) {
-    const proceed = await confirm({
+    const proceed = await confirmWithBack({
       message: "File not found at this path. Use anyway?",
       default: false,
     });
+    if (isBack(proceed)) {
+      return BACK;
+    }
     if (!proceed) {
-      return confirmPath(label, defaultPath);
+      return confirmPathWithBack(label, defaultPath);
     }
   }
 
   return resolveSafePath(customPath);
 }
 
-async function confirmApps(apps: LaunchEntry[]): Promise<LaunchEntry[]> {
+async function confirmApps(apps: LaunchEntry[]): Promise<BackOr<LaunchEntry[]>> {
   const confirmed: LaunchEntry[] = [];
 
   for (const app of apps) {
@@ -122,9 +178,12 @@ async function confirmApps(apps: LaunchEntry[]): Promise<LaunchEntry[]> {
       ? resolveToolPath(app.path)
       : app.path;
 
-    const path = await confirmPath(app.name, resolvedPath);
-    if (path) {
-      confirmed.push({ ...app, path });
+    const pathResult = await confirmPathWithBack(app.name, resolvedPath);
+    if (isBack(pathResult)) {
+      return BACK;
+    }
+    if (pathResult) {
+      confirmed.push({ ...app, path: pathResult });
     }
   }
 
@@ -145,7 +204,7 @@ async function runStep(step: StepId, ctx: SetupContext): Promise<BackOr<void>> {
         return BACK;
       }
       if (choice === "custom") {
-        ctx.profileName = await input({
+        const name = await inputWithBack({
           message: "Profile name:",
           default: ctx.profileName,
           validate: (value) => {
@@ -154,7 +213,11 @@ async function runStep(step: StepId, ctx: SetupContext): Promise<BackOr<void>> {
             }
             return true;
           },
-        });
+        }, { allowSkip: false });
+        if (isBack(name)) {
+          return BACK;
+        }
+        ctx.profileName = name;
       }
       return;
     }
@@ -167,7 +230,7 @@ async function runStep(step: StepId, ctx: SetupContext): Promise<BackOr<void>> {
           { name: `${PRESET_LABELS.school} — browser, comms, class links`, value: "school" },
           { name: `${PRESET_LABELS.game} — always-on apps + pick at launch`, value: "game" },
           { name: `${PRESET_LABELS.minimal} — browser only`, value: "minimal" },
-          { name: `${PRESET_LABELS.blank} — add paths manually`, value: "blank" },
+          { name: `${PRESET_LABELS.blank} — build from scratch`, value: "blank" },
         ],
       });
       if (isBack(presetAnswer)) {
@@ -182,7 +245,7 @@ async function runStep(step: StepId, ctx: SetupContext): Promise<BackOr<void>> {
       }
       if (presetAnswer !== "game") {
         ctx.catalogGameIds = [];
-        ctx.customGamesFolder = undefined;
+        ctx.customAppsFolder = undefined;
         ctx.gameOptions = undefined;
       }
       const preset = getPreset(presetAnswer);
@@ -192,7 +255,7 @@ async function runStep(step: StepId, ctx: SetupContext): Promise<BackOr<void>> {
     }
 
     case "game-shared": {
-      const selected = await checkbox({
+      const selected = await checkboxWithBack({
         message: "Apps to always launch with this profile:",
         choices: [
           { name: "Discord", value: "discord", checked: true },
@@ -201,19 +264,8 @@ async function runStep(step: StepId, ctx: SetupContext): Promise<BackOr<void>> {
         ],
       });
 
-      const review = await selectWithBack<"continue" | "retry">({
-        message: `${selected.length} shared app(s) selected`,
-        choices: [
-          { name: "Continue", value: "continue" },
-          { name: "← Back (change selection)", value: "retry" },
-        ],
-      });
-
-      if (isBack(review)) {
+      if (isBack(selected)) {
         return BACK;
-      }
-      if (review === "retry") {
-        return runStep("game-shared", ctx);
       }
 
       ctx.gameOptions = {
@@ -226,27 +278,16 @@ async function runStep(step: StepId, ctx: SetupContext): Promise<BackOr<void>> {
     }
 
     case "game-pick": {
-      const selected = await checkbox({
-        message: "Add built-in titles to your launch list (you'll choose which at launch):",
+      const selected = await checkboxWithBack({
+        message: "Add built-in titles to your launch list (choose at launch):",
         choices: GAME_CATALOG.map((game) => ({
           name: game.name,
           value: game.id,
         })),
       });
 
-      const review = await selectWithBack<"continue" | "retry">({
-        message: `${selected.length} game(s) selected`,
-        choices: [
-          { name: "Continue", value: "continue" },
-          { name: "← Back (change games)", value: "retry" },
-        ],
-      });
-
-      if (isBack(review)) {
+      if (isBack(selected)) {
         return BACK;
-      }
-      if (review === "retry") {
-        return runStep("game-pick", ctx);
       }
 
       ctx.catalogGameIds = selected;
@@ -268,9 +309,55 @@ async function runStep(step: StepId, ctx: SetupContext): Promise<BackOr<void>> {
       return;
     }
 
-    case "custom-folder": {
+    case "add-pinned": {
+      while (true) {
+        const action = await selectWithBack<"add" | "done">({
+          message: ctx.apps.length > 0
+            ? `${ctx.apps.length} app(s) in profile — add more always-launch apps?`
+            : "Add apps that always launch with this profile (e.g. Spotify, Notion):",
+          choices: [
+            { name: "Add an app manually", value: "add" },
+            { name: "Continue", value: "done" },
+          ],
+        });
+
+        if (isBack(action)) {
+          return BACK;
+        }
+
+        if (action === "done") {
+          break;
+        }
+
+        const appName = await inputWithBack({
+          message: "App name:",
+          validate: (value) => value.trim().length > 0 || "Enter a name",
+        }, { allowSkip: false });
+        if (isBack(appName)) {
+          continue;
+        }
+
+        const appPath = await inputWithBack({
+          message: "App path (.exe or protocol like ms-teams:):",
+          validate: (value) => value.trim().length > 0 || "Enter a path",
+        }, { allowSkip: false });
+        if (isBack(appPath)) {
+          continue;
+        }
+
+        ctx.apps.push({
+          name: appName.trim(),
+          path: appPath.includes(":") && !appPath.includes("\\") && !appPath.includes("/")
+            ? appPath.trim()
+            : resolveSafePath(appPath),
+        });
+      }
+      return;
+    }
+
+    case "apps-folder": {
       const addFolder = await selectWithBack<"yes" | "no">({
-        message: "Add a folder of apps or games? (.json or .exe files)",
+        message: "Add an apps folder to pick from at launch? (.json, .exe, or .lnk files)",
         choices: [
           { name: "Yes — folder with apps or games", value: "yes" },
           { name: "No", value: "no" },
@@ -282,28 +369,23 @@ async function runStep(step: StepId, ctx: SetupContext): Promise<BackOr<void>> {
       }
 
       if (addFolder === "no") {
-        ctx.customGamesFolder = undefined;
+        ctx.customAppsFolder = undefined;
       } else {
-        const folderPath = await input({
-          message: "Custom games folder path:",
+        const folderPath = await inputWithBack({
+          message: "Apps folder path:",
           validate: (value) => value.trim().length > 0 || "Enter a folder path",
-        });
+        }, { allowSkip: false });
 
-        ctx.customGamesFolder = path.resolve(folderPath.trim());
-        if (!fs.existsSync(ctx.customGamesFolder)) {
+        if (isBack(folderPath)) {
+          return BACK;
+        }
+
+        ctx.customAppsFolder = path.resolve(folderPath.trim());
+        if (!fs.existsSync(ctx.customAppsFolder)) {
           console.log(pc.yellow("  Folder not found — you can create it later."));
         }
-        const found = scanCustomGamesFolderUnsafe(ctx.customGamesFolder);
+        const found = scanCustomGamesFolderUnsafe(ctx.customAppsFolder);
         console.log(pc.dim(`  Found ${found.length} item(s) in folder`));
-      }
-
-      if (
-        ctx.catalogGameIds.length === 0 &&
-        !ctx.customGamesFolder &&
-        ctx.apps.length === 0
-      ) {
-        console.log(pc.yellow("  Add at least one catalog game, custom folder, or shared app."));
-        return runStep("game-pick", ctx);
       }
 
       return;
@@ -314,7 +396,11 @@ async function runStep(step: StepId, ctx: SetupContext): Promise<BackOr<void>> {
         return;
       }
       console.log(pc.cyan(`\nConfirm app paths for "${ctx.profileName}":`));
-      ctx.apps = await confirmApps(ctx.apps);
+      const confirmed = await confirmApps(ctx.apps);
+      if (isBack(confirmed)) {
+        return BACK;
+      }
+      ctx.apps = confirmed;
       return;
     }
 
@@ -350,7 +436,7 @@ async function runStep(step: StepId, ctx: SetupContext): Promise<BackOr<void>> {
         }
       }
 
-      const raw = await input({
+      const raw = await inputWithBack({
         message: "Enter URLs (comma-separated, or blank for none):",
         default: "",
         validate: (value) => {
@@ -363,6 +449,10 @@ async function runStep(step: StepId, ctx: SetupContext): Promise<BackOr<void>> {
           return true;
         },
       });
+
+      if (isBack(raw)) {
+        return BACK;
+      }
 
       ctx.urls = raw.trim()
         ? raw.split(",").map((u) => u.trim()).filter(Boolean)
@@ -414,6 +504,24 @@ async function runProfileSetupInternal(
     step = nextStep(step, ctx);
   }
 
+  if (!profileIsLaunchable(ctx)) {
+    console.log(pc.yellow(
+      "\nProfile needs at least one app or pickable item. Add a pinned app or apps folder.",
+    ));
+    step = "add-pinned";
+    while (step !== "done") {
+      const result = await runStep(step, ctx);
+      if (isBack(result)) {
+        return BACK;
+      }
+      step = nextStep(step, ctx);
+    }
+    if (!profileIsLaunchable(ctx)) {
+      console.log(pc.yellow("Setup cancelled — nothing to launch."));
+      return BACK;
+    }
+  }
+
   if (existingProfileNames.includes(ctx.profileName)) {
     console.log(pc.yellow(`Profile "${ctx.profileName}" already exists. Run setup again with a different name.`));
     return BACK;
@@ -421,13 +529,7 @@ async function runProfileSetupInternal(
 
   return {
     profileName: ctx.profileName,
-    profile: {
-      apps: ctx.apps,
-      urls: ctx.urls,
-      presetId: ctx.presetId,
-      catalogGameIds: ctx.catalogGameIds.length > 0 ? ctx.catalogGameIds : undefined,
-      customGamesFolder: ctx.customGamesFolder,
-    },
+    profile: draftProfile(ctx),
   };
 }
 
