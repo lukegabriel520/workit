@@ -5,9 +5,17 @@ export interface LaunchEntry {
   attachUrls?: boolean;
 }
 
+import type { PresetId } from "./presets.js";
+
 export interface Profile {
   apps: LaunchEntry[];
   urls: string[];
+  /** work | game | minimal | blank — set during init. */
+  presetId?: PresetId;
+  /** Catalog game ids available for `--pick` (not auto-launched). */
+  catalogGameIds?: string[];
+  /** Folder of custom .json / .exe games for `--pick`. */
+  customGamesFolder?: string;
 }
 
 export interface WorkitConfig {
@@ -62,6 +70,17 @@ export const CONF_SCHEMA = {
         urls: {
           type: "array" as const,
           items: { type: "string" as const },
+        },
+        catalogGameIds: {
+          type: "array" as const,
+          items: { type: "string" as const },
+        },
+        customGamesFolder: {
+          type: "string" as const,
+        },
+        presetId: {
+          type: "string" as const,
+          enum: ["work", "game", "minimal", "blank"],
         },
       },
       required: ["apps", "urls"],

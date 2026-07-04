@@ -102,3 +102,58 @@ export function getProfile(profileName: string): Profile {
 export function resetConfig(): void {
   store.clear();
 }
+
+const PROFILE_NAME_PATTERN = /^[a-z][a-z0-9-]*$/;
+
+export function renameProfile(oldName: string, newName: string): WorkitConfig {
+  if (!PROFILE_NAME_PATTERN.test(newName)) {
+    throw new ValidationError(
+      "Profile name must use lowercase letters, numbers, and hyphens; start with a letter",
+    );
+  }
+
+  const config = getConfigUnsafe();
+  const profile = config.profiles[oldName];
+  if (!profile) {
+    throw new ProfileNotFoundError(oldName);
+  }
+  if (config.profiles[newName] && newName !== oldName) {
+    throw new ValidationError(`Profile "${newName}" already exists`);
+  }
+
+  const { [oldName]: removed, ...rest } = config.profiles;
+  void removed;
+  const profiles = { ...rest, [newName]: profile };
+
+  store.set({
+    profiles,
+    defaultProfile: config.defaultProfile === oldName ? newName : config.defaultProfile,
+  });
+
+  return getConfig();
+}
+
+export function deleteProfile(name: string): WorkitConfig {
+  const config = getConfigUnsafe();
+  if (!config.profiles[name]) {
+    throw new ProfileNotFoundError(name);
+  }
+
+  const remaining = Object.keys(config.profiles).filter((key) => key !== name);
+  if (remaining.length === 0) {
+    throw new ValidationError(
+      "Cannot delete the only profile. Use `workit reset` to clear all configuration.",
+    );
+  }
+
+  const { [name]: removed, ...profiles } = config.profiles;
+  void removed;
+
+  store.set({
+    profiles,
+    defaultProfile: config.defaultProfile === name ? remaining[0] : config.defaultProfile,
+    isInit: true,
+  });
+
+  return getConfig();
+}

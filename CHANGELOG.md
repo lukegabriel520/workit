@@ -1,5 +1,24 @@
 # Changelog
 
+## 2.2.0
+
+### Added
+
+- Game catalog (LoL, Valorant, Genshin, ZZZ, Honkai, CS2, Elden Ring) with launcher-aware paths
+- Game preset wizard: pick shared apps (Discord, Steam, browser) and select catalog games
+- Optional **custom games folder** per profile (`.json` or `.exe` files)
+- **`--pick`** flag: interactive checkbox to launch one or many catalog/custom games
+- **`workit rename <old> <new>`** and rename option in `workit init`
+- **Change preset/category** when editing a profile (e.g. game → work) via `workit init`
+- **`workit delete <profile>`** — remove one profile without wiping everything
+- **← Back** option on wizard steps to go one step earlier
+- Profiles store **`presetId`** (work, game, minimal, blank) for display and reconfigure
+
+### Changed
+
+- Game preset stores shared apps (Discord, browser) as pinned; catalog/custom games use `--pick`
+- Game preset no longer hardcodes all apps — built from your selections
+
 ## 2.1.0
 
 ### Added

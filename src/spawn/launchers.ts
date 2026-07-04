@@ -8,6 +8,15 @@ export interface LauncherDefaults {
   commsPath: string;
 }
 
+export interface GameLauncherPaths {
+  browserPath: string;
+  steam: string;
+  discord: string;
+  hoyoplay: string;
+  epic: string;
+  riotClient: string;
+}
+
 export const ALLOWED_PROTOCOLS = new Set(["ms-teams:", "steam:", "steam://"]);
 
 function expandEnv(value: string): string {
@@ -43,6 +52,43 @@ export function getDefaultPaths(): LauncherDefaults {
       path.join(localAppData, "Microsoft", "WindowsApps", "ms-teams.exe"),
       path.join(localAppData, "Microsoft", "Teams", "current", "Teams.exe"),
       "ms-teams:",
+    ]),
+  };
+}
+
+export function getGameLauncherPaths(): GameLauncherPaths {
+  const defaults = getDefaultPaths();
+  const programFiles = process.env.ProgramFiles ?? "C:\\Program Files";
+  const programFilesX86 = process.env["ProgramFiles(x86)"] ?? "C:\\Program Files (x86)";
+  const localAppData = process.env.LOCALAPDATA ?? path.join(os.homedir(), "AppData", "Local");
+
+  return {
+    browserPath: defaults.browserPath,
+    steam: firstExisting([
+      path.join(programFilesX86, "Steam", "steam.exe"),
+      path.join(programFiles, "Steam", "steam.exe"),
+    ]),
+    discord: firstExisting([
+      path.join(localAppData, "Discord", "Update.exe"),
+    ]),
+    hoyoplay: firstExisting([
+      path.join(programFiles, "HoYoPlay", "launcher", "launcher.exe"),
+      path.join(programFiles, "HoYoPlay", "games", "HoYo Launcher", "launcher.exe"),
+    ]),
+    epic: firstExisting([
+      path.join(
+        programFilesX86,
+        "Epic Games",
+        "Launcher",
+        "Portal",
+        "Binaries",
+        "Win64",
+        "EpicGamesLauncher.exe",
+      ),
+    ]),
+    riotClient: firstExisting([
+      path.join(programFiles, "Riot Games", "Riot Client", "RiotClientServices.exe"),
+      path.join(programFilesX86, "Riot Games", "Riot Client", "RiotClientServices.exe"),
     ]),
   };
 }

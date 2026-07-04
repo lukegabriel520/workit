@@ -1,27 +1,26 @@
-import {
-  confirm,
-  input,
-  select,
-} from "@inquirer/prompts";
+import { confirm, input } from "@inquirer/prompts";
 import pc from "picocolors";
 import fs from "node:fs";
-import { getPreset, isPresetId, PRESET_LABELS, type PresetId } from "../config/presets.js";
-import type { LaunchEntry, Profile } from "../config/schema.js";
+import { ProfileNotFoundError } from "../errors.js";
+import type { LaunchEntry } from "../config/schema.js";
 import { validateUrl } from "../config/schema.js";
 import {
   getConfigPath,
   getConfigUnsafe,
+  deleteProfile,
+  renameProfile,
   resetConfig,
   setConfig,
   setProfile,
 } from "../config/store.js";
+import { PRESET_LABELS } from "../config/presets.js";
 import {
   pathExists,
   resolveSafePath,
   resolveToolPath,
 } from "../spawn/launchers.js";
-
-const PROFILE_NAME_PATTERN = /^[a-z][a-z0-9-]*$/;
+import { BACK, isBack, selectWithBack } from "./back.js";
+import { runProfileReconfigure, runProfileSetup } from "./profile-setup.js";
 
 async function confirmPath(label: string, defaultPath: string): Promise<string> {
   if (!defaultPath.trim()) {
@@ -124,46 +123,52 @@ async function collectUrls(defaultUrls: string[]): Promise<string[]> {
   return raw.split(",").map((u) => u.trim()).filter(Boolean);
 }
 
-async function setupProfile(profileName: string): Promise<Profile> {
-  const presetAnswer = await select({
-    message: `Preset for "${profileName}":`,
-    choices: [
-      { name: `${PRESET_LABELS.work} — browser, IDE, comms`, value: "work" },
-      { name: `${PRESET_LABELS.game} — Steam, Discord, League of Legends, browser`, value: "game" },
-      { name: `${PRESET_LABELS.minimal} — browser only`, value: "minimal" },
-      { name: `${PRESET_LABELS.blank} — add paths manually`, value: "blank" },
-    ],
-  });
+const PROFILE_NAME_PATTERN = /^[a-z][a-z0-9-]*$/;
 
-  if (!isPresetId(presetAnswer)) {
-    throw new Error("Invalid preset selected");
-  }
-
-  const preset = getPreset(presetAnswer);
-
-  console.log(pc.cyan(`\nConfirm app paths for "${profileName}":`));
-  const apps = preset.apps.length > 0 ? await confirmApps(preset.apps) : [];
-
-  const hasBrowser = apps.some((a) => a.attachUrls);
-  const urls = hasBrowser ? await collectUrls(preset.urls) : [];
-
-  return { apps, urls };
+export async function runRename(oldName: string, newName: string): Promise<void> {
+  renameProfile(oldName, newName);
+  console.log(pc.green(`✓ Profile renamed: ${oldName} → ${newName}`));
 }
 
-async function promptProfileName(defaultName: string): Promise<string> {
-  while (true) {
-    const name = await input({
-      message: "Profile name (lowercase, e.g. default, work, game):",
-      default: defaultName,
-      validate: (value) => {
-        if (!PROFILE_NAME_PATTERN.test(value)) {
-          return "Use lowercase letters, numbers, and hyphens; must start with a letter";
-        }
-        return true;
-      },
-    });
-    return name;
+async function renameProfileInteractive(): Promise<void> {
+  const config = getConfigUnsafe();
+  const names = Object.keys(config.profiles);
+
+  if (names.length === 0) {
+    console.log(pc.yellow("No profiles to rename."));
+    return;
   }
+
+  const oldName = await selectWithBack<string>({
+    message: "Profile to rename:",
+    choices: names.map((name) => ({ name, value: name })),
+  });
+
+  if (isBack(oldName)) {
+    console.log(pc.dim("Rename cancelled."));
+    return;
+  }
+
+  const newName = await input({
+    message: "New profile name:",
+    default: oldName,
+    validate: (value) => {
+      if (!PROFILE_NAME_PATTERN.test(value)) {
+        return "Use lowercase letters, numbers, and hyphens; must start with a letter";
+      }
+      if (value !== oldName && config.profiles[value]) {
+        return `Profile "${value}" already exists`;
+      }
+      return true;
+    },
+  });
+
+  if (newName === oldName) {
+    console.log(pc.dim("Name unchanged."));
+    return;
+  }
+
+  await runRename(oldName, newName);
 }
 
 async function editExistingProfile(): Promise<void> {
@@ -175,12 +180,45 @@ async function editExistingProfile(): Promise<void> {
     return;
   }
 
-  const profileName = await select({
+  const profileName = await selectWithBack<string>({
     message: "Select profile to edit:",
     choices: names.map((name) => ({ name, value: name })),
   });
 
+  if (isBack(profileName)) {
+    console.log(pc.dim("Edit cancelled."));
+    return;
+  }
+
   const existing = config.profiles[profileName];
+  const presetLabel = existing.presetId
+    ? PRESET_LABELS[existing.presetId]
+    : "unknown";
+
+  const editMode = await selectWithBack<"paths" | "preset">({
+    message: `Edit "${profileName}" (current preset: ${presetLabel}):`,
+    choices: [
+      { name: "Edit app paths only", value: "paths" },
+      { name: "Change preset / category (work, game, minimal, blank)", value: "preset" },
+    ],
+  });
+
+  if (isBack(editMode)) {
+    console.log(pc.dim("Edit cancelled."));
+    return;
+  }
+
+  if (editMode === "preset") {
+    const result = await runProfileReconfigure(profileName);
+    if (isBack(result)) {
+      console.log(pc.dim("Reconfigure cancelled."));
+      return;
+    }
+    setProfile(profileName, result.profile);
+    console.log(pc.green(`\n✓ Profile "${profileName}" reconfigured as ${PRESET_LABELS[result.profile.presetId ?? "blank"]}.`));
+    return;
+  }
+
   console.log(pc.cyan(`\nUpdating paths for "${profileName}":`));
   const apps = await confirmApps(existing.apps);
   const urls = existing.urls.length > 0 || apps.some((a) => a.attachUrls)
@@ -191,20 +229,70 @@ async function editExistingProfile(): Promise<void> {
   console.log(pc.green(`\n✓ Profile "${profileName}" updated.`));
 }
 
+export async function runDelete(profileName: string): Promise<void> {
+  const config = getConfigUnsafe();
+
+  if (!config.profiles[profileName]) {
+    throw new ProfileNotFoundError(profileName);
+  }
+
+  const confirmed = await confirm({
+    message: `Delete profile "${profileName}"?`,
+    default: false,
+  });
+
+  if (!confirmed) {
+    console.log(pc.dim("Delete cancelled."));
+    return;
+  }
+
+  deleteProfile(profileName);
+  console.log(pc.green(`✓ Profile "${profileName}" deleted.`));
+}
+
+async function deleteProfileInteractive(): Promise<void> {
+  const config = getConfigUnsafe();
+  const names = Object.keys(config.profiles);
+
+  if (names.length === 0) {
+    console.log(pc.yellow("No profiles to delete."));
+    return;
+  }
+
+  if (names.length === 1) {
+    console.log(pc.yellow("Cannot delete the only profile. Use `workit reset` instead."));
+    return;
+  }
+
+  const profileName = await selectWithBack<string>({
+    message: "Profile to delete:",
+    choices: names.map((name) => ({ name, value: name })),
+  });
+
+  if (isBack(profileName)) {
+    console.log(pc.dim("Delete cancelled."));
+    return;
+  }
+
+  await runDelete(profileName);
+}
+
 export async function runInit(): Promise<void> {
   const existing = getConfigUnsafe();
 
   if (existing.isInit) {
-    const action = await select({
+    const action = await selectWithBack<"edit" | "rename" | "delete" | "reset" | "cancel">({
       message: "Workit is already configured:",
       choices: [
         { name: "Edit an existing profile", value: "edit" },
+        { name: "Rename a profile", value: "rename" },
+        { name: "Delete a profile", value: "delete" },
         { name: "Full re-setup (clears all profiles)", value: "reset" },
         { name: "Cancel", value: "cancel" },
       ],
     });
 
-    if (action === "cancel") {
+    if (isBack(action) || action === "cancel") {
       console.log(pc.dim("Setup cancelled."));
       return;
     }
@@ -214,38 +302,62 @@ export async function runInit(): Promise<void> {
       return;
     }
 
+    if (action === "rename") {
+      await renameProfileInteractive();
+      return;
+    }
+
+    if (action === "delete") {
+      await deleteProfileInteractive();
+      return;
+    }
+
     resetConfig();
   }
 
   console.log(pc.bold("\nWelcome to Workit!\n"));
   console.log("Set up a launch profile for your session.\n");
 
-  const profileName = await promptProfileName("default");
-  const profile = await setupProfile(profileName);
+  const first = await runProfileSetup("default");
+  if (isBack(first)) {
+    console.log(pc.dim("Setup cancelled."));
+    return;
+  }
 
   setConfig({
     configVersion: 2,
     isInit: true,
-    defaultProfile: profileName,
-    profiles: { [profileName]: profile },
+    defaultProfile: first.profileName,
+    profiles: { [first.profileName]: first.profile },
   });
 
-  const addAnother = await confirm({
-    message: "Add another profile?",
-    default: false,
-  });
+  let suggestName = "game";
 
-  if (addAnother) {
-    const secondName = await promptProfileName("game");
-    const secondProfile = await setupProfile(secondName);
+  while (true) {
+    const addAnother = await confirm({
+      message: "Add another profile?",
+      default: false,
+    });
+
+    if (!addAnother) {
+      break;
+    }
+
+    const next = await runProfileSetup(suggestName);
+    if (isBack(next)) {
+      break;
+    }
+
     const config = getConfigUnsafe();
     setConfig({
-      profiles: { ...config.profiles, [secondName]: secondProfile },
+      profiles: { ...config.profiles, [next.profileName]: next.profile },
     });
+
+    suggestName = "gaming";
   }
 
   console.log(pc.green("\n✓ Workit configured successfully!"));
-  console.log(pc.dim(`Run \`workit\` or \`workit ${profileName}\` to launch.`));
+  console.log(pc.dim(`Run \`workit\` or \`workit ${first.profileName}\` to launch.`));
 }
 
 export async function runReset(): Promise<void> {
@@ -290,7 +402,16 @@ export async function showConfig(): Promise<void> {
     const profile = config.profiles[name];
     const marker = name === config.defaultProfile ? pc.cyan(" (default)") : "";
     console.log(`\n  Profile: ${pc.bold(name)}${marker}`);
+    if (profile.presetId) {
+      console.log(`    Preset: ${PRESET_LABELS[profile.presetId]}`);
+    }
     console.log(`    URLs:   ${profile.urls.length > 0 ? profile.urls.join(", ") : "(none)"}`);
+    if (profile.catalogGameIds?.length) {
+      console.log(`    Catalog: ${profile.catalogGameIds.join(", ")} (--pick)`);
+    }
+    if (profile.customGamesFolder) {
+      console.log(`    Custom folder: ${profile.customGamesFolder} (--pick)`);
+    }
     console.log(`    Apps:`);
     if (profile.apps.length === 0) {
       console.log(`      (none)`);

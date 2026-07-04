@@ -24,13 +24,13 @@ function printResult(result: SpawnResult): void {
 export async function launchProfile(
   profile: Profile,
   profileName: string,
-  options: { dryRun?: boolean } = {},
+  options: { dryRun?: boolean; extraApps?: LaunchEntry[] } = {},
 ): Promise<void> {
-  const { dryRun = false } = options;
+  const { dryRun = false, extraApps = [] } = options;
   const label = dryRun ? "Dry run" : "Starting session";
   console.log(pc.cyan(`${label}: ${profileName}\n`));
 
-  const activeApps = profile.apps.filter((app) => app.path?.trim());
+  const activeApps = [...profile.apps, ...extraApps].filter((app) => app.path?.trim());
 
   if (activeApps.length === 0) {
     console.log(pc.yellow("No apps configured with paths in this profile."));

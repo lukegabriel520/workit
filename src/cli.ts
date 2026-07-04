@@ -1,11 +1,13 @@
 import cac from "cac";
 import pc from "picocolors";
 import { NotConfiguredError, ProfileNotFoundError, ValidationError } from "./errors.js";
+import { getProfilePickPool, profileHasPickPool } from "./config/pick-pool.js";
 import { getConfigUnsafe, getProfile, requireInit } from "./config/store.js";
 import { launchProfile } from "./spawn/launch-profile.js";
-import { runInit, runReset, showConfig } from "./wizard/init.js";
+import { runInit, runDelete, runRename, runReset, showConfig } from "./wizard/init.js";
+import { promptPickGames } from "./wizard/pick-games.js";
 
-const RESERVED_COMMANDS = new Set(["init", "config", "reset", "help", "version"]);
+const RESERVED_COMMANDS = new Set(["init", "config", "reset", "rename", "delete", "help", "version"]);
 
 export function createCli() {
   const cli = cac("workit");
@@ -31,6 +33,27 @@ export function createCli() {
     });
 
   cli
+    .command("rename <oldName> <newName>", "Rename a profile")
+    .action(async (oldName: string, newName: string) => {
+      try {
+        await runRename(oldName, newName);
+      } catch (error) {
+        handleError(error);
+      }
+    });
+
+  cli
+    .command("delete <profileName>", "Delete a profile")
+    .action(async (profileName: string) => {
+      try {
+        requireInit();
+        await runDelete(profileName);
+      } catch (error) {
+        handleError(error);
+      }
+    });
+
+  cli
     .command("config", "Show current configuration")
     .action(async () => {
       try {
@@ -43,7 +66,11 @@ export function createCli() {
   cli
     .command("[profile]", "Launch a profile")
     .option("--dry-run", "Preview launches without starting apps")
-    .action(async (profileArg: string | undefined, options: { dryRun?: boolean }) => {
+    .option("--pick", "Choose catalog / custom-folder games to launch")
+    .action(async (
+      profileArg: string | undefined,
+      options: { dryRun?: boolean; pick?: boolean },
+    ) => {
       try {
         const config = requireInit();
         const profileName = profileArg ?? config.defaultProfile;
@@ -53,7 +80,34 @@ export function createCli() {
         }
 
         const profile = getProfile(profileName);
-        await launchProfile(profile, profileName, { dryRun: options.dryRun });
+        let extraApps: import("./config/schema.js").LaunchEntry[] = [];
+
+        if (options.pick) {
+          if (!profileHasPickPool(profile)) {
+            console.error(pc.yellow(
+              `Profile "${profileName}" has no catalog games or custom folder. Run \`workit init\` to add them.`,
+            ));
+            process.exit(1);
+            return;
+          }
+
+          const pool = getProfilePickPool(profile);
+          const picked = await promptPickGames(pool);
+          if (!picked || picked.length === 0) {
+            console.log(pc.dim("Nothing selected. Exiting."));
+            return;
+          }
+          extraApps = picked;
+        } else if (profileHasPickPool(profile)) {
+          console.log(pc.dim(
+            `Tip: This profile has pickable games. Use \`workit ${profileName} --pick\` to choose which to launch.`,
+          ));
+        }
+
+        await launchProfile(profile, profileName, {
+          dryRun: options.dryRun,
+          extraApps,
+        });
       } catch (error) {
         handleError(error);
       }
