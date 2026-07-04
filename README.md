@@ -1,6 +1,6 @@
 # Workit
 
-Non-invasive Windows CLI session booter. Launch named profiles of apps and URLs on demand — no background services, no boot hooks.
+Non-invasive Windows CLI session booter. Launch named profiles of apps and URLs on demand.
 
 **What it is:** One command opens your apps (browser, games, Discord, whatever you set up). Does not run at Windows login. Does not spy on you.
 
