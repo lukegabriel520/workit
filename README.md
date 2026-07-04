@@ -2,8 +2,6 @@
 
 Non-invasive Windows CLI session booter. Launch named profiles of apps and URLs on demand — optional pomodoro timer, no background services, no boot hooks.
 
-## Plain English (read this first)
-
 **What it is:** One command opens your apps (browser, games, Discord, whatever you set up). Optional countdown timer for focus. Does not run at Windows login. Does not spy on you.
 
 **Who needs what:** Windows PC + Node.js installed.
