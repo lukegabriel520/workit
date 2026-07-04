@@ -1,5 +1,23 @@
 # Changelog
 
+## 2.3.0
+
+### Added
+
+- **Auto launch picker** — profiles with a catalog or custom folder prompt you to choose items at launch (multi-select)
+- **`--no-pick`** — launch pinned apps only, skip the picker
+- **School preset** — browser, comms, and Google Classroom starter URL
+- **`workit list`** — show profile names and which is default
+- **`workit default <profile>`** — set the default profile
+- **Add new profile** option in `workit init` when already configured
+
+### Changed
+
+- Init wizard uses general naming (work, school, games) instead of game-specific examples
+- First profile suggests **`main`**; profile name auto-suggests from preset (e.g. game → `games`)
+- Game preset label is **Games & apps**; wizard copy reframed for work, school, and leisure
+- **`--pick`** remains available but is no longer required when a pick pool exists
+
 ## 2.2.0
 
 ### Added

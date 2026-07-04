@@ -10,7 +10,7 @@ export async function promptPickGames(pool: PickableItem[]): Promise<LaunchEntry
   }
 
   const selectedIds = await checkbox({
-    message: "Pick game(s) or app(s) to launch:",
+    message: "Pick app(s) or game(s) to launch:",
     choices: pool.map((item) => ({
       name: item.name,
       value: item.pickId,

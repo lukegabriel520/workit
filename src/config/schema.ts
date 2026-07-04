@@ -10,11 +10,11 @@ import type { PresetId } from "./presets.js";
 export interface Profile {
   apps: LaunchEntry[];
   urls: string[];
-  /** work | game | minimal | blank — set during init. */
+  /** work | school | game | minimal | blank — set during init. */
   presetId?: PresetId;
-  /** Catalog game ids available for `--pick` (not auto-launched). */
+  /** Catalog game ids prompted at launch (not auto-launched). */
   catalogGameIds?: string[];
-  /** Folder of custom .json / .exe games for `--pick`. */
+  /** Folder of custom .json / .exe apps prompted at launch. */
   customGamesFolder?: string;
 }
 
@@ -80,7 +80,7 @@ export const CONF_SCHEMA = {
         },
         presetId: {
           type: "string" as const,
-          enum: ["work", "game", "minimal", "blank"],
+          enum: ["work", "school", "game", "minimal", "blank"],
         },
       },
       required: ["apps", "urls"],

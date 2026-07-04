@@ -2,12 +2,51 @@ import cac from "cac";
 import pc from "picocolors";
 import { NotConfiguredError, ProfileNotFoundError, ValidationError } from "./errors.js";
 import { getProfilePickPool, profileHasPickPool } from "./config/pick-pool.js";
-import { getConfigUnsafe, getProfile, requireInit } from "./config/store.js";
+import { getConfigUnsafe, getProfile, requireInit, setConfig } from "./config/store.js";
 import { launchProfile } from "./spawn/launch-profile.js";
 import { runInit, runDelete, runRename, runReset, showConfig } from "./wizard/init.js";
 import { promptPickGames } from "./wizard/pick-games.js";
 
-const RESERVED_COMMANDS = new Set(["init", "config", "reset", "rename", "delete", "help", "version"]);
+const RESERVED_COMMANDS = new Set([
+  "init",
+  "config",
+  "reset",
+  "rename",
+  "delete",
+  "list",
+  "default",
+  "help",
+  "version",
+]);
+
+export async function resolveExtraApps(
+  profile: import("./config/schema.js").Profile,
+  profileName: string,
+  options: { pick?: boolean; noPick?: boolean },
+): Promise<import("./config/schema.js").LaunchEntry[] | null> {
+  const hasPool = profileHasPickPool(profile);
+  const shouldPrompt = hasPool && !options.noPick;
+
+  if (options.pick && !hasPool) {
+    console.error(pc.yellow(
+      `Profile "${profileName}" has no catalog games or custom folder. Run \`workit init\` to add them.`,
+    ));
+    process.exit(1);
+    return null;
+  }
+
+  if (!shouldPrompt) {
+    return [];
+  }
+
+  const pool = getProfilePickPool(profile);
+  const picked = await promptPickGames(pool);
+  if (!picked || picked.length === 0) {
+    console.log(pc.dim("Nothing selected. Exiting."));
+    return null;
+  }
+  return picked;
+}
 
 export function createCli() {
   const cli = cac("workit");
@@ -54,6 +93,40 @@ export function createCli() {
     });
 
   cli
+    .command("list", "List profile names")
+    .action(async () => {
+      try {
+        const config = requireInit();
+        const names = Object.keys(config.profiles);
+        if (names.length === 0) {
+          console.log(pc.dim("No profiles configured."));
+          return;
+        }
+        for (const name of names) {
+          const marker = name === config.defaultProfile ? pc.cyan(" (default)") : "";
+          console.log(`${name}${marker}`);
+        }
+      } catch (error) {
+        handleError(error);
+      }
+    });
+
+  cli
+    .command("default <profileName>", "Set the default profile")
+    .action(async (profileName: string) => {
+      try {
+        const config = requireInit();
+        if (!config.profiles[profileName]) {
+          throw new ProfileNotFoundError(profileName);
+        }
+        setConfig({ defaultProfile: profileName });
+        console.log(pc.green(`✓ Default profile set to "${profileName}".`));
+      } catch (error) {
+        handleError(error);
+      }
+    });
+
+  cli
     .command("config", "Show current configuration")
     .action(async () => {
       try {
@@ -66,10 +139,11 @@ export function createCli() {
   cli
     .command("[profile]", "Launch a profile")
     .option("--dry-run", "Preview launches without starting apps")
-    .option("--pick", "Choose catalog / custom-folder games to launch")
+    .option("--pick", "Choose catalog / custom-folder apps to launch (default when pool exists)")
+    .option("--no-pick", "Launch pinned apps only; skip the launch picker")
     .action(async (
       profileArg: string | undefined,
-      options: { dryRun?: boolean; pick?: boolean },
+      options: { dryRun?: boolean; pick?: boolean; noPick?: boolean },
     ) => {
       try {
         const config = requireInit();
@@ -80,28 +154,9 @@ export function createCli() {
         }
 
         const profile = getProfile(profileName);
-        let extraApps: import("./config/schema.js").LaunchEntry[] = [];
-
-        if (options.pick) {
-          if (!profileHasPickPool(profile)) {
-            console.error(pc.yellow(
-              `Profile "${profileName}" has no catalog games or custom folder. Run \`workit init\` to add them.`,
-            ));
-            process.exit(1);
-            return;
-          }
-
-          const pool = getProfilePickPool(profile);
-          const picked = await promptPickGames(pool);
-          if (!picked || picked.length === 0) {
-            console.log(pc.dim("Nothing selected. Exiting."));
-            return;
-          }
-          extraApps = picked;
-        } else if (profileHasPickPool(profile)) {
-          console.log(pc.dim(
-            `Tip: This profile has pickable games. Use \`workit ${profileName} --pick\` to choose which to launch.`,
-          ));
+        const extraApps = await resolveExtraApps(profile, profileName, options);
+        if (extraApps === null) {
+          return;
         }
 
         await launchProfile(profile, profileName, {

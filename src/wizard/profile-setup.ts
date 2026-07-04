@@ -8,7 +8,7 @@ import {
   type GameProfileOptions,
 } from "../config/games.js";
 import { scanCustomGamesFolderUnsafe } from "../config/custom-games.js";
-import { getPreset, isPresetId, PRESET_LABELS, type PresetId } from "../config/presets.js";
+import { getPreset, isPresetId, PRESET_LABELS, suggestProfileNameFromPreset, type PresetId } from "../config/presets.js";
 import type { LaunchEntry, Profile } from "../config/schema.js";
 import { validateUrl } from "../config/schema.js";
 import {
@@ -135,7 +135,7 @@ async function runStep(step: StepId, ctx: SetupContext): Promise<BackOr<void>> {
   switch (step) {
     case "name": {
       const choice = await selectWithBack<"default" | "custom">({
-        message: "Profile name (lowercase, e.g. default, lol, genshin):",
+        message: "Profile name (lowercase, e.g. work, school, games, focus):",
         choices: [
           { name: `Use "${ctx.profileName}"`, value: "default" },
           { name: "Enter a different name...", value: "custom" },
@@ -164,7 +164,8 @@ async function runStep(step: StepId, ctx: SetupContext): Promise<BackOr<void>> {
         message: `Preset for "${ctx.profileName}":`,
         choices: [
           { name: `${PRESET_LABELS.work} — browser, IDE, comms`, value: "work" },
-          { name: `${PRESET_LABELS.game} — pick games & launchers`, value: "game" },
+          { name: `${PRESET_LABELS.school} — browser, comms, class links`, value: "school" },
+          { name: `${PRESET_LABELS.game} — always-on apps + pick at launch`, value: "game" },
           { name: `${PRESET_LABELS.minimal} — browser only`, value: "minimal" },
           { name: `${PRESET_LABELS.blank} — add paths manually`, value: "blank" },
         ],
@@ -176,6 +177,9 @@ async function runStep(step: StepId, ctx: SetupContext): Promise<BackOr<void>> {
         throw new Error("Invalid preset selected");
       }
       ctx.presetId = presetAnswer;
+      if (GENERIC_PROFILE_NAMES.has(ctx.profileName)) {
+        ctx.profileName = suggestProfileNameFromPreset(presetAnswer);
+      }
       if (presetAnswer !== "game") {
         ctx.catalogGameIds = [];
         ctx.customGamesFolder = undefined;
@@ -189,7 +193,7 @@ async function runStep(step: StepId, ctx: SetupContext): Promise<BackOr<void>> {
 
     case "game-shared": {
       const selected = await checkbox({
-        message: "Include shared apps with your games?",
+        message: "Apps to always launch with this profile:",
         choices: [
           { name: "Discord", value: "discord", checked: true },
           { name: "Steam client", value: "steam" },
@@ -223,7 +227,7 @@ async function runStep(step: StepId, ctx: SetupContext): Promise<BackOr<void>> {
 
     case "game-pick": {
       const selected = await checkbox({
-        message: "Add catalog games to this profile (--pick at launch):",
+        message: "Add built-in titles to your launch list (you'll choose which at launch):",
         choices: GAME_CATALOG.map((game) => ({
           name: game.name,
           value: game.id,
@@ -266,9 +270,9 @@ async function runStep(step: StepId, ctx: SetupContext): Promise<BackOr<void>> {
 
     case "custom-folder": {
       const addFolder = await selectWithBack<"yes" | "no">({
-        message: "Add a custom games folder? (.json or .exe files)",
+        message: "Add a folder of apps or games? (.json or .exe files)",
         choices: [
-          { name: "Yes — folder with personalized games", value: "yes" },
+          { name: "Yes — folder with apps or games", value: "yes" },
           { name: "No", value: "no" },
         ],
       });
@@ -373,8 +377,11 @@ export interface ProfileSetupResult {
   profile: Profile;
 }
 
+const GENERIC_PROFILE_NAMES = new Set(["main", "default", "session"]);
+
 interface SetupOptions {
   startAt?: StepId;
+  existingProfileNames?: string[];
 }
 
 async function runProfileSetupInternal(
@@ -382,6 +389,7 @@ async function runProfileSetupInternal(
   options: SetupOptions = {},
 ): Promise<BackOr<ProfileSetupResult>> {
   const startAt = options.startAt ?? "name";
+  const existingProfileNames = options.existingProfileNames ?? [];
   const ctx: SetupContext = {
     profileName: defaultName,
     catalogGameIds: [],
@@ -406,6 +414,11 @@ async function runProfileSetupInternal(
     step = nextStep(step, ctx);
   }
 
+  if (existingProfileNames.includes(ctx.profileName)) {
+    console.log(pc.yellow(`Profile "${ctx.profileName}" already exists. Run setup again with a different name.`));
+    return BACK;
+  }
+
   return {
     profileName: ctx.profileName,
     profile: {
@@ -418,8 +431,14 @@ async function runProfileSetupInternal(
   };
 }
 
-export async function runProfileSetup(defaultName: string): Promise<BackOr<ProfileSetupResult>> {
-  return runProfileSetupInternal(defaultName, { startAt: "name" });
+export async function runProfileSetup(
+  defaultName: string,
+  options?: Pick<SetupOptions, "existingProfileNames">,
+): Promise<BackOr<ProfileSetupResult>> {
+  return runProfileSetupInternal(defaultName, {
+    startAt: "name",
+    existingProfileNames: options?.existingProfileNames,
+  });
 }
 
 /** Re-run preset + apps wizard for an existing profile name (change work → game, etc.). */

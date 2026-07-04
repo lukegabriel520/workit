@@ -13,7 +13,7 @@ import {
   setConfig,
   setProfile,
 } from "../config/store.js";
-import { PRESET_LABELS } from "../config/presets.js";
+import { PRESET_LABELS, suggestProfileNameFromPreset } from "../config/presets.js";
 import {
   pathExists,
   resolveSafePath,
@@ -199,7 +199,7 @@ async function editExistingProfile(): Promise<void> {
     message: `Edit "${profileName}" (current preset: ${presetLabel}):`,
     choices: [
       { name: "Edit app paths only", value: "paths" },
-      { name: "Change preset / category (work, game, minimal, blank)", value: "preset" },
+      { name: "Change preset / category (work, school, games, minimal, blank)", value: "preset" },
     ],
   });
 
@@ -277,14 +277,44 @@ async function deleteProfileInteractive(): Promise<void> {
   await runDelete(profileName);
 }
 
+function nextAvailableProfileName(config: ReturnType<typeof getConfigUnsafe>): string {
+  const base = "session";
+  if (!config.profiles[base]) {
+    return base;
+  }
+  let i = 2;
+  while (config.profiles[`${base}${i}`]) {
+    i++;
+  }
+  return `${base}${i}`;
+}
+
+async function addNewProfileInteractive(): Promise<void> {
+  const config = getConfigUnsafe();
+  const existingNames = Object.keys(config.profiles);
+  const suggestName = nextAvailableProfileName(config);
+
+  const result = await runProfileSetup(suggestName, { existingProfileNames: existingNames });
+  if (isBack(result)) {
+    console.log(pc.dim("Add profile cancelled."));
+    return;
+  }
+
+  setConfig({
+    profiles: { ...config.profiles, [result.profileName]: result.profile },
+  });
+  console.log(pc.green(`\n✓ Profile "${result.profileName}" added.`));
+}
+
 export async function runInit(): Promise<void> {
   const existing = getConfigUnsafe();
 
   if (existing.isInit) {
-    const action = await selectWithBack<"edit" | "rename" | "delete" | "reset" | "cancel">({
+    const action = await selectWithBack<"edit" | "add" | "rename" | "delete" | "reset" | "cancel">({
       message: "Workit is already configured:",
       choices: [
         { name: "Edit an existing profile", value: "edit" },
+        { name: "Add a new profile", value: "add" },
         { name: "Rename a profile", value: "rename" },
         { name: "Delete a profile", value: "delete" },
         { name: "Full re-setup (clears all profiles)", value: "reset" },
@@ -302,6 +332,11 @@ export async function runInit(): Promise<void> {
       return;
     }
 
+    if (action === "add") {
+      await addNewProfileInteractive();
+      return;
+    }
+
     if (action === "rename") {
       await renameProfileInteractive();
       return;
@@ -316,9 +351,9 @@ export async function runInit(): Promise<void> {
   }
 
   console.log(pc.bold("\nWelcome to Workit!\n"));
-  console.log("Set up a launch profile for your session.\n");
+  console.log("Set up a session profile — work, school, games, or your own mix.\n");
 
-  const first = await runProfileSetup("default");
+  const first = await runProfileSetup("main");
   if (isBack(first)) {
     console.log(pc.dim("Setup cancelled."));
     return;
@@ -331,7 +366,9 @@ export async function runInit(): Promise<void> {
     profiles: { [first.profileName]: first.profile },
   });
 
-  let suggestName = "game";
+  let suggestName = first.profile.presetId
+    ? suggestProfileNameFromPreset(first.profile.presetId)
+    : "session";
 
   while (true) {
     const addAnother = await confirm({
@@ -343,17 +380,24 @@ export async function runInit(): Promise<void> {
       break;
     }
 
-    const next = await runProfileSetup(suggestName);
+    const config = getConfigUnsafe();
+    const existingNames = Object.keys(config.profiles);
+    if (config.profiles[suggestName]) {
+      suggestName = nextAvailableProfileName(config);
+    }
+
+    const next = await runProfileSetup(suggestName, { existingProfileNames: existingNames });
     if (isBack(next)) {
       break;
     }
 
-    const config = getConfigUnsafe();
     setConfig({
       profiles: { ...config.profiles, [next.profileName]: next.profile },
     });
 
-    suggestName = "gaming";
+    suggestName = next.profile.presetId
+      ? suggestProfileNameFromPreset(next.profile.presetId)
+      : nextAvailableProfileName(getConfigUnsafe());
   }
 
   console.log(pc.green("\n✓ Workit configured successfully!"));
@@ -407,10 +451,10 @@ export async function showConfig(): Promise<void> {
     }
     console.log(`    URLs:   ${profile.urls.length > 0 ? profile.urls.join(", ") : "(none)"}`);
     if (profile.catalogGameIds?.length) {
-      console.log(`    Catalog: ${profile.catalogGameIds.join(", ")} (--pick)`);
+      console.log(`    Catalog: ${profile.catalogGameIds.join(", ")} (prompted at launch)`);
     }
     if (profile.customGamesFolder) {
-      console.log(`    Custom folder: ${profile.customGamesFolder} (--pick)`);
+      console.log(`    Custom folder: ${profile.customGamesFolder} (prompted at launch)`);
     }
     console.log(`    Apps:`);
     if (profile.apps.length === 0) {

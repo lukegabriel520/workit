@@ -1,7 +1,7 @@
 import type { LaunchEntry } from "./schema.js";
 import { getDefaultPaths } from "../spawn/launchers.js";
 
-export type PresetId = "work" | "game" | "minimal" | "blank";
+export type PresetId = "work" | "school" | "game" | "minimal" | "blank";
 
 export interface Preset {
   id: PresetId;
@@ -13,10 +13,20 @@ export interface Preset {
 
 export const PRESET_LABELS: Record<PresetId, string> = {
   work: "Work",
-  game: "Game",
+  school: "School",
+  game: "Games & apps",
   minimal: "Minimal",
   blank: "Blank (custom)",
 };
+
+export function suggestProfileNameFromPreset(presetId: PresetId): string {
+  switch (presetId) {
+    case "game":
+      return "games";
+    default:
+      return presetId;
+  }
+}
 
 export function getPreset(id: PresetId): Preset {
   const defaults = getDefaultPaths();
@@ -34,11 +44,22 @@ export function getPreset(id: PresetId): Preset {
         ],
         urls: ["https://github.com", "https://mail.google.com"],
       };
+    case "school":
+      return {
+        id: "school",
+        label: PRESET_LABELS.school,
+        description: "Browser and comms for classes and study",
+        apps: [
+          { name: "Browser", path: defaults.browserPath, attachUrls: true },
+          { name: "Comms", path: defaults.commsPath },
+        ],
+        urls: ["https://classroom.google.com"],
+      };
     case "game":
       return {
         id: "game",
         label: PRESET_LABELS.game,
-        description: "Pick games and shared launchers in the setup wizard",
+        description: "Always-on apps plus pick from folder or catalog at launch",
         apps: [],
         urls: [],
       };
@@ -62,5 +83,11 @@ export function getPreset(id: PresetId): Preset {
 }
 
 export function isPresetId(value: string): value is PresetId {
-  return value === "work" || value === "game" || value === "minimal" || value === "blank";
+  return (
+    value === "work" ||
+    value === "school" ||
+    value === "game" ||
+    value === "minimal" ||
+    value === "blank"
+  );
 }
